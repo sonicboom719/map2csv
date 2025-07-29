@@ -18,7 +18,6 @@ export class OverlayManager {
         this.overlayLayer = null;
         this.previewRectangle = null;
         this.imageWindow = null;
-        this.isSelectingMapPoints = false;
         
         this.setupEventHandlers();
         this.createControlPanel();
@@ -101,7 +100,8 @@ export class OverlayManager {
         
         // 地図のクリックイベント
         this.map.on('click', (e) => {
-            if (this.isSelectingMapPoints && this.mapPoints.length < 2) {
+            // 画像で2点選択完了後はマップクリックを受け付ける
+            if (this.imagePoints.length === 2) {
                 this.addMapPoint(e);
             }
         });
@@ -166,25 +166,19 @@ export class OverlayManager {
         if (data.type === 'pointAdded') {
             this.imagePoints = data.points;
             this.updateUIForImagePoints();
-            
-            // 画像で2点選択完了したらマップ選択モードに
-            if (this.imagePoints.length === 2) {
-                this.isSelectingMapPoints = true;
-                this.updateInstructionText();
-            }
+            this.updateInstructionText();
         } else if (data.type === 'pointRemoved') {
             this.imagePoints = data.points;
             this.updateUIForImagePoints();
             
             // マップの選択をリセット
             this.resetMapPoints();
-            this.isSelectingMapPoints = false;
             this.updateInstructionText();
         }
     }
     
     resetMapPoints() {
-        // マップのマーカーを削除
+        // マップのマーカーを削除（各点につき2つのマーカー）
         this.mapMarkers.forEach(marker => marker.remove());
         this.mapMarkers = [];
         this.mapPoints = [];
@@ -282,29 +276,88 @@ export class OverlayManager {
     
     addMapPoint(event) {
         const latlng = event.latlng;
-        this.mapPoints.push(latlng);
+        console.log('Map clicked at:', latlng);
         
-        const colors = ['#27ae60', '#e74c3c'];
+        // 既存の点をクリックした場合は削除（最後の点のみ）
+        const clickPixel = this.map.latLngToContainerPoint(latlng);
+        const tolerance = 20; // ピクセル単位での許容範囲
         
-        // マーカーを追加
-        const marker = L.marker(latlng, {
-            icon: L.divIcon({
-                className: 'simple-marker',
-                html: `<div style="background-color: ${colors[this.mapPoints.length - 1]}; color: white; padding: 8px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); white-space: nowrap;">📍 地図${this.mapPoints.length}</div>`,
-                iconSize: [80, 40]
-            })
-        }).addTo(this.map);
+        for (let i = this.mapPoints.length - 1; i >= 0; i--) {
+            const point = this.mapPoints[i];
+            const pointPixel = this.map.latLngToContainerPoint(point);
+            const distance = Math.sqrt(
+                Math.pow(pointPixel.x - clickPixel.x, 2) + Math.pow(pointPixel.y - clickPixel.y, 2)
+            );
+            
+            console.log(`Distance to point ${i + 1}:`, distance, 'pixels');
+            
+            if (distance <= tolerance) {
+                // 最後に選択した点のみ削除可能
+                if (i === this.mapPoints.length - 1) {
+                    console.log(`Removing last point ${i + 1}`);
+                    this.mapPoints.splice(i, 1);
+                    
+                    // 各点につき2つのマーカー（ピンと番号）を削除
+                    const markerIndex = i * 2;
+                    if (this.mapMarkers[markerIndex]) {
+                        this.mapMarkers[markerIndex].remove();
+                    }
+                    if (this.mapMarkers[markerIndex + 1]) {
+                        this.mapMarkers[markerIndex + 1].remove();
+                    }
+                    this.mapMarkers.splice(markerIndex, 2);
+                    
+                    // UIを更新
+                    this.updateUIForImagePoints();
+                    this.updateInstructionText();
+                    this.updatePointsDisplay();
+                    return;
+                } else {
+                    console.log(`Cannot remove point ${i + 1} - not the last point`);
+                }
+            }
+        }
         
-        this.mapMarkers.push(marker);
-        
-        // UIを更新
-        this.updateUIForImagePoints();
-        this.updateInstructionText();
-        this.updatePointsDisplay();
-        
-        // 2点完了時は選択モードを終了
-        if (this.mapPoints.length === 2) {
-            this.isSelectingMapPoints = false;
+        // 新しい点を追加（最大2点）
+        if (this.mapPoints.length < 2) {
+            console.log(`Adding new point ${this.mapPoints.length + 1} at:`, latlng);
+            this.mapPoints.push(latlng);
+            
+            const colors = ['#27ae60', '#e74c3c'];
+            
+            // 普通のピンマーカーを作成
+            const marker = L.circleMarker(latlng, {
+                radius: 8,
+                fillColor: colors[this.mapPoints.length - 1],
+                color: 'white',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 1
+            }).addTo(this.map);
+            
+            // 番号を追加
+            const numberMarker = L.marker(latlng, {
+                icon: L.divIcon({
+                    className: 'map-point-number',
+                    html: `<div style="background: transparent; color: white; font-size: 12px; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${this.mapPoints.length}</div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                })
+            }).addTo(this.map);
+            
+            this.mapMarkers.push(marker);
+            this.mapMarkers.push(numberMarker);
+            
+            console.log(`Total map points: ${this.mapPoints.length}, Total markers: ${this.mapMarkers.length}`);
+            
+            // UIを更新
+            this.updateUIForImagePoints();
+            this.updateInstructionText();
+            this.updatePointsDisplay();
+            
+            // 2点完了後も取消操作のためクリックを受け付ける
+        } else {
+            console.log('Maximum 2 points already selected');
         }
     }
     
@@ -672,9 +725,8 @@ export class OverlayManager {
         // setImage用のリセット（画像ウィンドウは閉じない）
         this.imagePoints = [];
         this.mapPoints = [];
-        this.isSelectingMapPoints = false;
         
-        // マーカーを削除
+        // マーカーを削除（各点につき2つのマーカー）
         this.mapMarkers.forEach(marker => marker.remove());
         this.mapMarkers = [];
         
@@ -704,9 +756,8 @@ export class OverlayManager {
     resetPoints() {
         this.imagePoints = [];
         this.mapPoints = [];
-        this.isSelectingMapPoints = false;
         
-        // マーカーを削除
+        // マーカーを削除（各点につき2つのマーカー）
         this.mapMarkers.forEach(marker => marker.remove());
         this.mapMarkers = [];
         
