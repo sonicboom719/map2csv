@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ドラッグ&リサイズテスト</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        
+        #testButton {
+            padding: 15px 30px;
+            font-size: 16px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        #testButton:hover {
+            background: #c0392b;
+        }
+        
+        .draggable-container {
+            position: fixed;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: visible;
+            z-index: 1000;
+        }
+        
+        .title-bar {
+            background: #e74c3c;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            cursor: move;
+            user-select: none;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title-bar:hover {
+            background: #c0392b;
+        }
+        
+        .close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 18px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .content-area {
+            position: relative;
+            padding: 20px;
+            background: white;
+            border-radius: 0 0 12px 12px;
+        }
+        
+        .test-canvas {
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="%23f8f9fa"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="24" fill="%23666">テスト画像</text><circle cx="50" cy="50" r="20" fill="%23e74c3c"/><circle cx="350" cy="50" r="20" fill="%233498db"/><circle cx="350" cy="250" r="20" fill="%2328a745"/><circle cx="50" cy="250" r="20" fill="%23f39c12"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        
+        .resize-handle {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #3498db;
+            border: 4px solid white;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10;
+            opacity: 1;
+            transition: transform 0.2s ease;
+        }
+        
+        .resize-handle:hover {
+            transform: scale(1.2);
+            background: #2980b9;
+        }
+        
+        .resize-nw {
+            top: -12px;
+            left: -12px;
+            cursor: nw-resize;
+        }
+        
+        .resize-ne {
+            top: -12px;
+            right: -12px;
+            cursor: ne-resize;
+        }
+        
+        .resize-se {
+            bottom: -12px;
+            right: -12px;
+            cursor: se-resize;
+        }
+        
+        .resize-sw {
+            bottom: -12px;
+            left: -12px;
+            cursor: sw-resize;
+        }
+        
+        .instructions {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #27ae60;
+        }
+        
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h3>🧪 ドラッグ&リサイズ機能テスト</h3>
+        <p><strong>操作方法:</strong></p>
+        <ul>
+            <li>🔴 <strong>赤いタイトルバー</strong>をドラッグして移動</li>
+            <li>🔵 <strong>4隅の青い丸</strong>をドラッグしてサイズ変更</li>
+            <li>✕ <strong>閉じるボタン</strong>でウィンドウを閉じる</li>
+        </ul>
+    </div>
+    
+    <button id="testButton">📷 テストウィンドウを表示</button>
+    
+    <script>
+        class DraggableResizable {
+            constructor() {
+                this.isDragging = false;
+                this.isResizing = false;
+                this.currentHandle = null;
+                this.startX = 0;
+                this.startY = 0;
+                this.startLeft = 0;
+                this.startTop = 0;
+                this.startWidth = 400;
+                this.startHeight = 300;
+                this.container = null;
+                this.canvas = null;
+            }
+            
+            create() {
+                // メインコンテナ
+                this.container = document.createElement('div');
+                this.container.className = 'draggable-container';
+                this.container.style.left = '50%';
+                this.container.style.top = '50%';
+                this.container.style.transform = 'translate(-50%, -50%)';
+                
+                // タイトルバー
+                const titleBar = document.createElement('div');
+                titleBar.className = 'title-bar';
+                titleBar.innerHTML = `
+                    <span>📷 この赤いバーをドラッグして移動してください</span>
+                    <button class="close-btn">×</button>
+                `;
+                
+                // コンテンツエリア
+                const contentArea = document.createElement('div');
+                contentArea.className = 'content-area';
+                
+                // テスト用キャンバス
+                this.canvas = document.createElement('div');
+                this.canvas.className = 'test-canvas';
+                this.canvas.style.width = this.startWidth + 'px';
+                this.canvas.style.height = this.startHeight + 'px';
+                
+                // DOM構築
+                contentArea.appendChild(this.canvas);
+                this.container.appendChild(titleBar);
+                this.container.appendChild(contentArea);
+                document.body.appendChild(this.container);
+                
+                // リサイズハンドルを追加
+                this.addResizeHandles(contentArea);
+                
+                // イベントリスナー設定
+                this.setupEvents(titleBar);
+                
+                return this.container;
+            }
+            
+            addResizeHandles(contentArea) {
+                const handles = [
+                    { class: 'resize-nw', cursor: 'nw-resize' },
+                    { class: 'resize-ne', cursor: 'ne-resize' },
+                    { class: 'resize-se', cursor: 'se-resize' },
+                    { class: 'resize-sw', cursor: 'sw-resize' }
+                ];
+                
+                handles.forEach(handleInfo => {
+                    const handle = document.createElement('div');
+                    handle.className = `resize-handle ${handleInfo.class}`;
+                    
+                    // リサイズイベント
+                    handle.addEventListener('mousedown', (e) => {
+                        this.startResize(e, handleInfo.class);
+                    });
+                    
+                    contentArea.appendChild(handle);
+                });
+            }
+            
+            setupEvents(titleBar) {
+                // ドラッグイベント
+                titleBar.addEventListener('mousedown', (e) => {
+                    if (e.target.className === 'close-btn') {
+                        this.container.remove();
+                        return;
+                    }
+                    this.startDrag(e);
+                });
+                
+                // グローバルマウスイベント
+                document.addEventListener('mousemove', (e) => {
+                    if (this.isDragging) {
+                        this.doDrag(e);
+                    } else if (this.isResizing) {
+                        this.doResize(e);
+                    }
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    this.stopDrag();
+                    this.stopResize();
+                });
+            }
+            
+            startDrag(e) {
+                this.isDragging = true;
+                this.startX = e.clientX;
+                this.startY = e.clientY;
+                
+                const rect = this.container.getBoundingClientRect();
+                this.startLeft = rect.left;
+                this.startTop = rect.top;
+                
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            }
+            
+            doDrag(e) {
+                const deltaX = e.clientX - this.startX;
+                const deltaY = e.clientY - this.startY;
+                
+                this.container.style.left = (this.startLeft + deltaX) + 'px';
+                this.container.style.top = (this.startTop + deltaY) + 'px';
+                this.container.style.transform = 'none';
+            }
+            
+            stopDrag() {
+                this.isDragging = false;
+                document.body.style.userSelect = '';
+            }
+            
+            startResize(e, handleClass) {
+                this.isResizing = true;
+                this.currentHandle = handleClass;
+                this.startX = e.clientX;
+                this.startY = e.clientY;
+                this.startWidth = this.canvas.offsetWidth;
+                this.startHeight = this.canvas.offsetHeight;
+                
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            doResize(e) {
+                const deltaX = e.clientX - this.startX;
+                const deltaY = e.clientY - this.startY;
+                
+                let newWidth = this.startWidth;
+                let newHeight = this.startHeight;
+                
+                switch(this.currentHandle) {
+                    case 'resize-se':
+                        newWidth = this.startWidth + deltaX;
+                        newHeight = this.startHeight + deltaY;
+                        break;
+                    case 'resize-sw':
+                        newWidth = this.startWidth - deltaX;
+                        newHeight = this.startHeight + deltaY;
+                        break;
+                    case 'resize-ne':
+                        newWidth = this.startWidth + deltaX;
+                        newHeight = this.startHeight - deltaY;
+                        break;
+                    case 'resize-nw':
+                        newWidth = this.startWidth - deltaX;
+                        newHeight = this.startHeight - deltaY;
+                        break;
+                }
+                
+                // サイズ制限
+                newWidth = Math.max(200, Math.min(800, newWidth));
+                newHeight = Math.max(150, Math.min(600, newHeight));
+                
+                this.canvas.style.width = newWidth + 'px';
+                this.canvas.style.height = newHeight + 'px';
+            }
+            
+            stopResize() {
+                this.isResizing = false;
+                this.currentHandle = null;
+                document.body.style.userSelect = '';
+            }
+        }
+        
+        // テストボタンのイベント
+        document.getElementById('testButton').addEventListener('click', () => {
+            new DraggableResizable().create();
+        });
+    </script>
+</body>
+</html>

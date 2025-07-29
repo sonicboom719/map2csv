@@ -1,0 +1,10 @@
+dist/
+.env
+*.log
+.DS_Store
+coverage/
+.vscode/
+.idea/
+.claude/
+.obsidian/
+__pycache__/
