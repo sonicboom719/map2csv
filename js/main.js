@@ -1,6 +1,6 @@
 import { MapManager } from './map.js';
 import { ImageUploader } from './uploader.js';
-import { OverlayManager } from './overlay-simple-2point.js';
+import { OverlayManager } from './overlay-simple-clean.js';
 import { PinManager } from './pins.js';
 import { CsvExporter } from './export.js';
 
