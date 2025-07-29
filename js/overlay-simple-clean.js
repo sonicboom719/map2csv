@@ -747,8 +747,8 @@ export class OverlayManager {
             const marker = L.marker(latlng, {
                 icon: L.divIcon({
                     className: 'simple-marker',
-                    html: `<div style="background-color: ${colors[index]}; color: white; padding: 8px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); white-space: nowrap;">📍 ${index + 1}. ${pointNames[index]}</div>`,
-                    iconSize: [80, 40]
+                    html: `<div style="background-color: ${colors[index]}; color: white; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">${index + 1}</div>`,
+                    iconSize: [30, 30]
                 }),
                 draggable: true
             }).addTo(this.map);
@@ -764,6 +764,7 @@ export class OverlayManager {
         
         this.showPreviewRectangle();
         this.applyButton.disabled = false;
+        this.applyButton.style.display = 'block';
         this.applyButton.textContent = '位置合わせを実行';
         
         const info = this.overlaySection.querySelector('.info');

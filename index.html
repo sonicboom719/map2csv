@@ -1,108 +1,118 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地図オーバーレイ＆ピン打ちツール</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Remove distortable image plugin as it's causing issues -->
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>PinMap-Overlayツール</title>
+	
+	<!-- Leaflet CSS -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+	
+	<!-- Remove distortable image plugin as it's causing issues -->
+	
+	<!-- Custom CSS -->
+	<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="container">
-        <!-- サイドパネル -->
-        <div class="sidebar">
-            <h1>地図オーバーレイツール</h1>
-            
-            <!-- 画像アップロードセクション -->
-            <div class="section">
-                <h2>1. 画像をアップロード</h2>
-                <div class="upload-area" id="uploadArea">
-                    <p>画像をドラッグ＆ドロップ<br>または<br>CLICKして選択<br>または<br>Ctrl+Vでペースト</p>
-                    <input type="file" id="fileInput" accept="image/*,.pdf" style="display: none;">
-                </div>
-                <div id="uploadedImage" class="uploaded-image" style="display: none;">
-                    <img id="previewImage" alt="アップロード画像">
-                </div>
-            </div>
-            
-            <!-- 住所入力セクション -->
-            <div class="section">
-                <h2>2. おおよその住所を入力</h2>
-                <input type="text" id="addressInput" placeholder="例: 東京都千代田区永田町">
-                <button id="searchAddress" class="btn-primary">地図を移動</button>
-            </div>
-            
-            <!-- オーバーレイ制御セクション -->
-            <div class="section" id="overlaySection" style="display: none;">
-                <h2>3. 画像の位置合わせ</h2>
-                <p class="info">STEP1: 青ウィンドウで2点選択 → STEP2: 地図で対応する2点選択 → STEP3: 位置合わせ実行</p>
-                <div class="point-selection">
-                    <div class="point-status">
-                        <h3>画像上の点</h3>
-                        <div id="imagePoints" class="points-list"></div>
-                    </div>
-                    <div class="point-status">
-                        <h3>地図上の点</h3>
-                        <div id="mapPoints" class="points-list"></div>
-                    </div>
-                </div>
-                <button id="applyTransform" class="btn-primary" disabled>位置合わせを実行</button>
-                <button id="resetPoints" class="btn-secondary">選択をリセット</button>
-            </div>
-            
-        </div>
-        
-        <!-- 地図エリア -->
-        <div class="map-container">
-            <div id="map"></div>
-            <!-- 画像選択用キャンバス -->
-            <canvas id="imageCanvas" style="display: none;"></canvas>
-        </div>
-        
-        <!-- 右サイドパネル -->
-        <div class="right-sidebar" id="rightSidebar" style="display: none;">
-            <!-- ピン管理セクション -->
-            <div class="section" id="pinSection">
-                <h2>4. ピンを配置</h2>
-                <p class="info">地図上をCLICKしてピンを配置</p>
-                <div id="pinList" class="pin-list"></div>
-                <button id="exportCsv" class="btn-primary">CSVダウンロード</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- モーダル -->
-    <div id="pinModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3>ピン情報を入力</h3>
-            <label>
-                掲示番号:
-                <input type="text" id="pinNumber" placeholder="例: A-1">
-            </label>
-            <label>
-                メモ:
-                <textarea id="pinMemo" placeholder="任意のメモ"></textarea>
-            </label>
-            <div class="modal-buttons">
-                <button id="savePinInfo" class="btn-primary">保存</button>
-                <button id="cancelPinInfo" class="btn-secondary">キャンセル</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    </script>
-    <script src="js/main.js" type="module"></script>
+	<div class="container">
+		<!-- サイドパネル -->
+		<div class="sidebar">
+			<h1>PinMap-Overlayツール</h1>
+			
+			<!-- 画像アップロードセクション -->
+			<div class="section">
+				<h2>1. 地図画像をアップロード</h2>
+				<div class="upload-area" id="uploadArea">
+					<p>画像をドラッグ＆ドロップ<br>または<br>CLICKして選択<br>または<br>Ctrl+Vでペースト</p>
+					<input type="file" id="fileInput" accept="image/*,.pdf" style="display: none;">
+				</div>
+				<div id="uploadedImage" class="uploaded-image" style="display: none;">
+					<img id="previewImage" alt="アップロード画像">
+				</div>
+			</div>
+			
+			<!-- 住所入力セクション -->
+			<div class="section">
+				<h2>2. 地図のエリアを入力</h2>
+				<input type="text" id="addressInput" placeholder="例: 東京都千代田区永田町">
+				<button id="searchAddress" class="btn-primary">地図を移動</button>
+			</div>
+			
+			<!-- オーバーレイ制御セクション -->
+			<div class="section" id="overlaySection" style="display: none;">
+				<h2>3. 画像の位置合わせ</h2>
+				<p class="info">STEP1: 青ウィンドウで2点選択 → STEP2: 地図で対応する2点選択 → STEP3: 位置合わせ実行</p>
+				<div class="point-selection">
+					<div class="point-status">
+						<h3>画像上の点</h3>
+						<div id="imagePoints" class="points-list"></div>
+					</div>
+					<div class="point-status">
+						<h3>地図上の点</h3>
+						<div id="mapPoints" class="points-list"></div>
+					</div>
+				</div>
+				<button id="applyTransform" class="btn-primary" disabled>位置合わせを実行</button>
+				<button id="resetPoints" class="btn-secondary">選択をリセット</button>
+			</div>
+			
+		</div>
+		
+		<!-- 地図エリア -->
+		<div class="map-container">
+			<div id="map"></div>
+			<!-- 画像選択用キャンバス -->
+			<canvas id="imageCanvas" style="display: none;"></canvas>
+		</div>
+		
+		<!-- 右サイドパネル -->
+		<div class="right-sidebar" id="rightSidebar" style="display: none;">
+			<!-- ピン管理セクション -->
+			<div class="section" id="pinSection">
+				<h2>4. ピンを配置</h2>
+				<p class="info">地図上をCLICKしてピンを配置</p>
+				<div id="pinList" class="pin-list"></div>
+				<div style="margin-top: 15px;">
+					<label style="display: block; margin-bottom: 10px;">
+						都道府県:
+						<input type="text" id="prefectureInput" placeholder="例: 東京都" style="margin-top: 5px;">
+					</label>
+					<label style="display: block; margin-bottom: 15px;">
+						市区町村:
+						<input type="text" id="cityInput" placeholder="例: 千代田区" style="margin-top: 5px;">
+					</label>
+					<button id="exportCsv" class="btn-primary">正規化CSVダウンロード</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<!-- モーダル -->
+	<div id="pinModal" class="modal" style="display: none;">
+		<div class="modal-content">
+			<h3>ピン情報を入力</h3>
+			<label>
+				掲示場番号:
+				<input type="text" id="pinNumber" placeholder="例: A-1">
+			</label>
+			<label>
+				メモ:
+				<textarea id="pinMemo" placeholder="任意のメモ"></textarea>
+			</label>
+			<div class="modal-buttons">
+				<button id="savePinInfo" class="btn-primary">保存</button>
+				<button id="cancelPinInfo" class="btn-secondary">キャンセル</button>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Scripts -->
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+	<script>
+		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+	</script>
+	<script src="js/main.js" type="module"></script>
 </body>
 </html>

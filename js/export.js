@@ -20,10 +20,16 @@ export class CsvExporter {
             return;
         }
         
+        // 都道府県と市区町村を取得
+        const prefecture = document.getElementById('prefectureInput').value.trim();
+        const city = document.getElementById('cityInput').value.trim();
+        
         // CSVデータを作成
         const csvData = [
-            ['緯度', '経度', '掲示番号', 'メモ'], // ヘッダー
+            ['都道府県', '市区町村', '緯度', '経度', '掲示場番号', 'メモ'], // ヘッダー
             ...pins.map(pin => [
+                prefecture,
+                city,
                 pin.latitude.toFixed(6),
                 pin.longitude.toFixed(6),
                 pin.number || '',

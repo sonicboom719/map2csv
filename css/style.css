@@ -184,9 +184,10 @@ button {
 
 /* ピンリスト */
 .pin-list {
-    max-height: 300px;
+    max-height: calc(100vh - 450px);
     overflow-y: auto;
     margin-bottom: 15px;
+    min-height: 100px;
 }
 
 .pin-item {
