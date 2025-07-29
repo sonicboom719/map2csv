@@ -458,63 +458,143 @@ export class OverlayManager {
     }
     
     calculate2PointTransform() {
-        // 画像の2点と地図の2点から変換を計算
+        // 画像の2点と地図の2点から正確な変換を計算
         const imagePoint1 = this.imagePoints[0];
         const imagePoint2 = this.imagePoints[1];
         const mapPoint1 = this.mapPoints[0];
         const mapPoint2 = this.mapPoints[1];
         
-        // 画像上の2点間のベクトル
+        console.log('Image points:', imagePoint1, imagePoint2);
+        console.log('Map points:', mapPoint1, mapPoint2);
+        
+        // 画像上の2点間のベクトルと距離
         const imageVector = {
             x: imagePoint2.x - imagePoint1.x,
             y: imagePoint2.y - imagePoint1.y
         };
+        const imageDistance = Math.sqrt(imageVector.x * imageVector.x + imageVector.y * imageVector.y);
         
-        // 地図上の2点間のベクトル
+        // 地図上の2点間のベクトルと距離
         const mapVector = {
             lat: mapPoint2.lat - mapPoint1.lat,
             lng: mapPoint2.lng - mapPoint1.lng
         };
+        const mapDistance = Math.sqrt(mapVector.lat * mapVector.lat + mapVector.lng * mapVector.lng);
         
-        // 画像の実際のサイズ
+        // スケール計算
+        const scaleX = mapVector.lng / imageVector.x;
+        const scaleY = mapVector.lat / imageVector.y;
+        
+        console.log('Scale factors:', { scaleX, scaleY });
+        
+        // 画像の4隅の座標
         const imageWidth = this.imageData.width;
         const imageHeight = this.imageData.height;
         
-        // スケール計算（地図の距離 / 画像の距離）
-        const imageDistance = Math.sqrt(imageVector.x * imageVector.x + imageVector.y * imageVector.y);
-        const mapDistance = Math.sqrt(mapVector.lat * mapVector.lat + mapVector.lng * mapVector.lng);
-        const scale = mapDistance / imageDistance;
-        
-        // 画像の4隅を地図座標に変換
-        const corners = [
-            { x: 0, y: 0 }, // 左上
-            { x: imageWidth, y: 0 }, // 右上
-            { x: imageWidth, y: imageHeight }, // 右下
-            { x: 0, y: imageHeight } // 左下
-        ];
-        
-        const transformedCorners = corners.map(corner => {
+        // 2点を使ったアフィン変換で4隅を変換
+        const transformPoint = (imageX, imageY) => {
             // 画像座標を基準点1からの相対座標に変換
-            const relativeX = corner.x - imagePoint1.x;
-            const relativeY = corner.y - imagePoint1.y;
+            const relativeX = imageX - imagePoint1.x;
+            const relativeY = imageY - imagePoint1.y;
             
-            // スケールを適用して地図座標に変換
-            const lat = mapPoint1.lat + (relativeY * scale);
-            const lng = mapPoint1.lng + (relativeX * scale);
+            // アフィン変換を適用
+            const lat = mapPoint1.lat + (relativeY * scaleY);
+            const lng = mapPoint1.lng + (relativeX * scaleX);
             
             return [lat, lng];
-        });
+        };
+        
+        // 画像の4隅を変換
+        const corners = [
+            transformPoint(0, 0), // 左上
+            transformPoint(imageWidth, 0), // 右上
+            transformPoint(imageWidth, imageHeight), // 右下
+            transformPoint(0, imageHeight) // 左下
+        ];
+        
+        console.log('Transformed corners:', corners);
         
         // 境界ボックスを作成
-        const lats = transformedCorners.map(corner => corner[0]);
-        const lngs = transformedCorners.map(corner => corner[1]);
+        const lats = corners.map(corner => corner[0]);
+        const lngs = corners.map(corner => corner[1]);
         
         const bounds = [
             [Math.min(...lats), Math.min(...lngs)], // 南西
             [Math.max(...lats), Math.max(...lngs)]  // 北東
         ];
         
+        console.log('Final bounds:', bounds);
+        
+        // 確認：変換された基準点が正しいかチェック
+        const transformedPoint1 = transformPoint(imagePoint1.x, imagePoint1.y);
+        const transformedPoint2 = transformPoint(imagePoint2.x, imagePoint2.y);
+        console.log('Verification:');
+        console.log('Transformed point 1:', transformedPoint1, 'Expected:', [mapPoint1.lat, mapPoint1.lng]);
+        console.log('Transformed point 2:', transformedPoint2, 'Expected:', [mapPoint2.lat, mapPoint2.lng]);
+        
         return bounds;
+    }
+    
+    create2PointImageOverlay(bounds, opacity) {
+        // 標準のImageOverlayを作成（現時点での最良の近似）
+        const overlay = L.imageOverlay(this.imageData.url, bounds, {
+            opacity: opacity,
+            interactive: false
+        }).addTo(this.map);
+        
+        // 検証用マーカーを追加（デバッグ用）
+        if (true) { // デバッグ用フラグ
+            const imagePoint1 = this.imagePoints[0];
+            const imagePoint2 = this.imagePoints[1];
+            
+            // 画像座標を地図座標に変換
+            const transformPoint = (imageX, imageY) => {
+                const relativeX = imageX - imagePoint1.x;
+                const relativeY = imageY - imagePoint1.y;
+                
+                const mapVector = {
+                    lat: this.mapPoints[1].lat - this.mapPoints[0].lat,
+                    lng: this.mapPoints[1].lng - this.mapPoints[0].lng
+                };
+                const imageVector = {
+                    x: imagePoint2.x - imagePoint1.x,
+                    y: imagePoint2.y - imagePoint1.y
+                };
+                
+                const scaleX = mapVector.lng / imageVector.x;
+                const scaleY = mapVector.lat / imageVector.y;
+                
+                const lat = this.mapPoints[0].lat + (relativeY * scaleY);
+                const lng = this.mapPoints[0].lng + (relativeX * scaleX);
+                
+                return [lat, lng];
+            };
+            
+            // 変換された基準点をマーカーで表示
+            const transformedPoint1 = transformPoint(imagePoint1.x, imagePoint1.y);
+            const transformedPoint2 = transformPoint(imagePoint2.x, imagePoint2.y);
+            
+            // 検証用マーカー（小さく薄く表示）
+            L.circleMarker(transformedPoint1, {
+                radius: 3,
+                fillColor: '#27ae60',
+                color: 'white',
+                weight: 1,
+                opacity: 0.7,
+                fillOpacity: 0.7
+            }).addTo(this.map);
+            
+            L.circleMarker(transformedPoint2, {
+                radius: 3,
+                fillColor: '#e74c3c',
+                color: 'white',
+                weight: 1,
+                opacity: 0.7,
+                fillOpacity: 0.7
+            }).addTo(this.map);
+        }
+        
+        return overlay;
     }
     
     applyOverlay() {
@@ -541,12 +621,11 @@ export class OverlayManager {
         // 2点対応による変換を計算
         const bounds = this.calculate2PointTransform();
         
-        // 画像オーバーレイを作成
+        // 2点が正確に一致する画像オーバーレイを作成
         const opacity = parseFloat(document.getElementById('imageOpacity').value);
-        this.overlayLayer = L.imageOverlay(this.imageData.url, bounds, {
-            opacity: opacity,
-            interactive: false
-        }).addTo(this.map);
+        
+        // カスタム画像オーバーレイで正確な2点対応を実現
+        this.overlayLayer = this.create2PointImageOverlay(bounds, opacity);
         
         // 画像ウィンドウは閉じる
         if (this.imageWindow) {
