@@ -12,11 +12,13 @@ export class OverlayManager {
         this.onOverlayApplied = options.onOverlayApplied;
         
         this.imageData = null;
-        this.mapPoints = [];
+        this.imagePoints = []; // 画像上の選択点
+        this.mapPoints = []; // 地図上の選択点
         this.mapMarkers = [];
         this.overlayLayer = null;
         this.previewRectangle = null;
         this.imageWindow = null;
+        this.isSelectingMapPoints = false;
         
         this.setupEventHandlers();
         this.createControlPanel();
@@ -99,7 +101,7 @@ export class OverlayManager {
         
         // 地図のクリックイベント
         this.map.on('click', (e) => {
-            if (this.mapPoints.length < 2) {
+            if (this.isSelectingMapPoints && this.mapPoints.length < 2) {
                 this.addMapPoint(e);
             }
         });
@@ -131,28 +133,8 @@ export class OverlayManager {
         // シンプルなドラッグ&リサイズウィンドウを表示
         this.showImageWindow();
         
-        const info = this.overlaySection.querySelector('.info');
-        info.innerHTML = `
-            <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                📍 とても簡単！2回クリックするだけ
-            </div>
-            
-            <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
-                <div style="font-size: 16px; font-weight: bold; color: #27ae60; margin-bottom: 8px;">
-                    ステップ1: 左上をクリック
-                </div>
-                <div style="font-size: 14px; color: #2d5a2d;">
-                    地図上で画像を配置したい範囲の<strong>左上の角</strong>をクリックしてください
-                </div>
-            </div>
-            
-            <div style="font-size: 13px; color: #7f8c8d; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-                💡 <strong>コツ:</strong> 右の画像ウィンドウを参考に、地図上の対応する場所を探してクリック<br>
-                🔧 <strong>画像操作:</strong> 赤いバーをドラッグして移動・4隅の青い丸でリサイズ
-            </div>
-        `;
-        info.style.backgroundColor = '#f8f9fa';
-        info.style.color = '#2c3e50';
+        // 初期状態の指示を表示
+        this.updateInstructionText();
     }
     
     showImageWindow() {
@@ -169,9 +151,8 @@ export class OverlayManager {
         }
         
         // 新しいシンプルなドラッグ&リサイズウィンドウを作成
-        this.imageWindow = new SimpleDragResizeWindow(this.imageData, (e) => {
-            // キャンバスクリック時の処理（特になし）
-            console.log('Image window canvas clicked');
+        this.imageWindow = new SimpleDragResizeWindow(this.imageData, (data) => {
+            this.handleImagePointSelection(data);
         }, () => {
             // ×ボタンクリック時の削除処理
             this.deleteImage();
@@ -181,76 +162,150 @@ export class OverlayManager {
         this.imageCanvas.style.display = 'none';
     }
     
+    handleImagePointSelection(data) {
+        if (data.type === 'pointAdded') {
+            this.imagePoints = data.points;
+            this.updateUIForImagePoints();
+            
+            // 画像で2点選択完了したらマップ選択モードに
+            if (this.imagePoints.length === 2) {
+                this.isSelectingMapPoints = true;
+                this.updateInstructionText();
+            }
+        } else if (data.type === 'pointRemoved') {
+            this.imagePoints = data.points;
+            this.updateUIForImagePoints();
+            
+            // マップの選択をリセット
+            this.resetMapPoints();
+            this.isSelectingMapPoints = false;
+            this.updateInstructionText();
+        }
+    }
+    
+    resetMapPoints() {
+        // マップのマーカーを削除
+        this.mapMarkers.forEach(marker => marker.remove());
+        this.mapMarkers = [];
+        this.mapPoints = [];
+    }
+    
+    updateUIForImagePoints() {
+        this.updatePointsDisplay();
+        
+        // 適用ボタンの状態を更新
+        if (this.imagePoints.length === 2 && this.mapPoints.length === 2) {
+            this.applyButton.disabled = false;
+        } else {
+            this.applyButton.disabled = true;
+        }
+    }
+    
+    updateInstructionText() {
+        const info = this.overlaySection.querySelector('.info');
+        
+        if (this.imagePoints.length === 0) {
+            info.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                    📍 画像上で2点を選択してください
+                </div>
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
+                    <div style="font-size: 16px; font-weight: bold; color: #27ae60; margin-bottom: 8px;">
+                        ステップ1: 画像の1点目をクリック
+                    </div>
+                    <div style="font-size: 14px; color: #2d5a2d;">
+                        右の画像ウィンドウで最初の基準点をクリックしてください
+                    </div>
+                </div>
+            `;
+        } else if (this.imagePoints.length === 1) {
+            info.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                    📍 画像上で2点目を選択してください
+                </div>
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
+                    <div style="font-size: 16px; font-weight: bold; color: #e67e22; margin-bottom: 8px;">
+                        ステップ2: 画像の2点目をクリック
+                    </div>
+                    <div style="font-size: 14px; color: #856404;">
+                        右の画像ウィンドウで2番目の基準点をクリックしてください
+                    </div>
+                </div>
+            `;
+        } else if (this.imagePoints.length === 2 && this.mapPoints.length === 0) {
+            info.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                    📍 地図上で対応する2点を選択してください
+                </div>
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
+                    <div style="font-size: 16px; font-weight: bold; color: #1976d2; margin-bottom: 8px;">
+                        ステップ3: 地図の1点目をクリック
+                    </div>
+                    <div style="font-size: 14px; color: #0d47a1;">
+                        画像の1点目に対応する地図上の場所をクリックしてください
+                    </div>
+                </div>
+            `;
+        } else if (this.imagePoints.length === 2 && this.mapPoints.length === 1) {
+            info.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                    📍 地図上で2点目を選択してください
+                </div>
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9c27b0;">
+                    <div style="font-size: 16px; font-weight: bold; color: #7b1fa2; margin-bottom: 8px;">
+                        ステップ4: 地図の2点目をクリック
+                    </div>
+                    <div style="font-size: 14px; color: #4a148c;">
+                        画像の2点目に対応する地図上の場所をクリックしてください
+                    </div>
+                </div>
+            `;
+        } else if (this.imagePoints.length === 2 && this.mapPoints.length === 2) {
+            info.innerHTML = `
+                <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #28a745;">
+                    ✅ 2点対応が完了しました！
+                </div>
+                <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #28a745;">
+                    <div style="font-size: 16px; font-weight: bold; color: #28a745; margin-bottom: 8px;">
+                        準備完了 🎉
+                    </div>
+                    <div style="font-size: 14px; color: #155724;">
+                        「位置合わせを実行」をクリックして画像を配置してください
+                    </div>
+                </div>
+            `;
+        }
+        
+        info.style.backgroundColor = '#f8f9fa';
+        info.style.color = '#2c3e50';
+    }
+    
     addMapPoint(event) {
         const latlng = event.latlng;
         this.mapPoints.push(latlng);
         
-        const pointNames = ['左上', '右下'];
         const colors = ['#27ae60', '#e74c3c'];
         
         // マーカーを追加
         const marker = L.marker(latlng, {
             icon: L.divIcon({
                 className: 'simple-marker',
-                html: `<div style="background-color: ${colors[this.mapPoints.length - 1]}; color: white; padding: 8px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); white-space: nowrap;">📍 ${this.mapPoints.length}. ${pointNames[this.mapPoints.length - 1]}</div>`,
+                html: `<div style="background-color: ${colors[this.mapPoints.length - 1]}; color: white; padding: 8px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); white-space: nowrap;">📍 地図${this.mapPoints.length}</div>`,
                 iconSize: [80, 40]
             })
         }).addTo(this.map);
         
         this.mapMarkers.push(marker);
         
-        if (this.mapPoints.length === 1) {
-            // 1点目が選択された
-            const info = this.overlaySection.querySelector('.info');
-            info.innerHTML = `
-                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #27ae60;">
-                    ✅ 左上が選択されました！
-                </div>
-                
-                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
-                    <div style="font-size: 16px; font-weight: bold; color: #e67e22; margin-bottom: 8px;">
-                        ステップ2: 右下をクリック
-                    </div>
-                    <div style="font-size: 14px; color: #856404;">
-                        次に、画像を配置したい範囲の<strong>右下の角</strong>をクリックしてください
-                    </div>
-                </div>
-                
-                <div style="font-size: 13px; color: #7f8c8d; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-                    💡 2点目をクリックすると、その間に四角形の範囲が自動的に作られます
-                </div>
-            `;
-            info.style.backgroundColor = '#f8f9fa';
-            info.style.color = '#2c3e50';
-        } else if (this.mapPoints.length === 2) {
-            // 2点目が選択された - プレビュー表示
-            this.showPreviewRectangle();
-            this.applyButton.disabled = false;
-            
-            const info = this.overlaySection.querySelector('.info');
-            info.innerHTML = `
-                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #e74c3c;">
-                    ✅ 右下が選択されました！
-                </div>
-                
-                <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #28a745;">
-                    <div style="font-size: 16px; font-weight: bold; color: #28a745; margin-bottom: 8px;">
-                        範囲が決まりました 🎉
-                    </div>
-                    <div style="font-size: 14px; color: #155724;">
-                        赤い四角形の範囲に画像が配置されます。「位置合わせを実行」をクリックしてください。
-                    </div>
-                </div>
-                
-                <div style="font-size: 13px; color: #6c757d; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-                    💡 位置がずれている場合は「選択をリセット」で最初からやり直せます
-                </div>
-            `;
-            info.style.backgroundColor = '#f8f9fa';
-            info.style.color = '#2c3e50';
-        }
-        
+        // UIを更新
+        this.updateUIForImagePoints();
+        this.updateInstructionText();
         this.updatePointsDisplay();
+        
+        // 2点完了時は選択モードを終了
+        if (this.mapPoints.length === 2) {
+            this.isSelectingMapPoints = false;
+        }
     }
     
     showPreviewRectangle() {
@@ -277,45 +332,121 @@ export class OverlayManager {
     }
     
     updatePointsDisplay() {
-        // 画像は固定表示なので簡単なメッセージのみ
-        this.imagePointsDiv.innerHTML = `
-            <div style="text-align: center; color: #3498db; font-size: 14px; padding: 15px;">
-                → 右の画像ウィンドウが地図上に配置されます
-            </div>
-        `;
+        // 画像ポイントの表示更新
+        this.imagePointsDiv.innerHTML = '';
+        
+        this.imagePoints.forEach((point, index) => {
+            const div = document.createElement('div');
+            div.className = 'point-item';
+            div.innerHTML = `
+                <span class="point-number" style="background-color: ${index === 0 ? '#27ae60' : '#e74c3c'};">✓</span> 
+                画像${index + 1} - 選択済み
+            `;
+            this.imagePointsDiv.appendChild(div);
+        });
+        
+        if (this.imagePoints.length < 2) {
+            const nextIndex = this.imagePoints.length;
+            const div = document.createElement('div');
+            div.className = 'point-item';
+            div.style.color = nextIndex === 0 ? '#27ae60' : '#e74c3c';
+            div.style.fontWeight = 'bold';
+            div.innerHTML = `
+                <span class="point-number" style="background-color: ${nextIndex === 0 ? '#27ae60' : '#e74c3c'};">${nextIndex + 1}</span> 
+                画像${nextIndex + 1} ← 次にクリック
+            `;
+            this.imagePointsDiv.appendChild(div);
+        }
         
         // 地図ポイントの表示更新
         this.mapPointsDiv.innerHTML = '';
-        
-        const pointNames = ['左上の角', '右下の角'];
-        const colors = ['#27ae60', '#e74c3c'];
         
         this.mapPoints.forEach((point, index) => {
             const div = document.createElement('div');
             div.className = 'point-item';
             div.innerHTML = `
-                <span class="point-number" style="background-color: ${colors[index]};">✓</span> 
-                ${pointNames[index]} - 選択済み
+                <span class="point-number" style="background-color: ${index === 0 ? '#27ae60' : '#e74c3c'};">✓</span> 
+                地図${index + 1} - 選択済み
             `;
             this.mapPointsDiv.appendChild(div);
         });
         
-        if (this.mapPoints.length < 2) {
+        if (this.mapPoints.length < 2 && this.imagePoints.length === 2) {
             const nextIndex = this.mapPoints.length;
             const div = document.createElement('div');
             div.className = 'point-item';
             div.style.color = nextIndex === 0 ? '#27ae60' : '#e74c3c';
             div.style.fontWeight = 'bold';
             div.innerHTML = `
-                <span class="point-number" style="background-color: ${colors[nextIndex]};">${nextIndex + 1}</span> 
-                ${pointNames[nextIndex]} ← 次にクリック
+                <span class="point-number" style="background-color: ${nextIndex === 0 ? '#27ae60' : '#e74c3c'};">${nextIndex + 1}</span> 
+                地図${nextIndex + 1} ← 次にクリック
             `;
             this.mapPointsDiv.appendChild(div);
         }
     }
     
+    calculate2PointTransform() {
+        // 画像の2点と地図の2点から変換を計算
+        const imagePoint1 = this.imagePoints[0];
+        const imagePoint2 = this.imagePoints[1];
+        const mapPoint1 = this.mapPoints[0];
+        const mapPoint2 = this.mapPoints[1];
+        
+        // 画像上の2点間のベクトル
+        const imageVector = {
+            x: imagePoint2.x - imagePoint1.x,
+            y: imagePoint2.y - imagePoint1.y
+        };
+        
+        // 地図上の2点間のベクトル
+        const mapVector = {
+            lat: mapPoint2.lat - mapPoint1.lat,
+            lng: mapPoint2.lng - mapPoint1.lng
+        };
+        
+        // 画像の実際のサイズ
+        const imageWidth = this.imageData.width;
+        const imageHeight = this.imageData.height;
+        
+        // スケール計算（地図の距離 / 画像の距離）
+        const imageDistance = Math.sqrt(imageVector.x * imageVector.x + imageVector.y * imageVector.y);
+        const mapDistance = Math.sqrt(mapVector.lat * mapVector.lat + mapVector.lng * mapVector.lng);
+        const scale = mapDistance / imageDistance;
+        
+        // 画像の4隅を地図座標に変換
+        const corners = [
+            { x: 0, y: 0 }, // 左上
+            { x: imageWidth, y: 0 }, // 右上
+            { x: imageWidth, y: imageHeight }, // 右下
+            { x: 0, y: imageHeight } // 左下
+        ];
+        
+        const transformedCorners = corners.map(corner => {
+            // 画像座標を基準点1からの相対座標に変換
+            const relativeX = corner.x - imagePoint1.x;
+            const relativeY = corner.y - imagePoint1.y;
+            
+            // スケールを適用して地図座標に変換
+            const lat = mapPoint1.lat + (relativeY * scale);
+            const lng = mapPoint1.lng + (relativeX * scale);
+            
+            return [lat, lng];
+        });
+        
+        // 境界ボックスを作成
+        const lats = transformedCorners.map(corner => corner[0]);
+        const lngs = transformedCorners.map(corner => corner[1]);
+        
+        const bounds = [
+            [Math.min(...lats), Math.min(...lngs)], // 南西
+            [Math.max(...lats), Math.max(...lngs)]  // 北東
+        ];
+        
+        return bounds;
+    }
+    
     applyOverlay() {
-        if (this.mapPoints.length !== 2) return;
+        if (this.imagePoints.length !== 2 || this.mapPoints.length !== 2) return;
         
         // コントロールパネルを表示
         document.getElementById('imageControls').style.display = 'block';
@@ -335,8 +466,8 @@ export class OverlayManager {
         this.mapMarkers.forEach(marker => marker.remove());
         this.mapMarkers = [];
         
-        // 境界ボックスを作成
-        const bounds = L.latLngBounds(this.mapPoints[0], this.mapPoints[1]);
+        // 2点対応による変換を計算
+        const bounds = this.calculate2PointTransform();
         
         // 画像オーバーレイを作成
         const opacity = parseFloat(document.getElementById('imageOpacity').value);
@@ -539,7 +670,9 @@ export class OverlayManager {
     
     resetPointsOnly() {
         // setImage用のリセット（画像ウィンドウは閉じない）
+        this.imagePoints = [];
         this.mapPoints = [];
+        this.isSelectingMapPoints = false;
         
         // マーカーを削除
         this.mapMarkers.forEach(marker => marker.remove());
@@ -569,7 +702,9 @@ export class OverlayManager {
     }
     
     resetPoints() {
+        this.imagePoints = [];
         this.mapPoints = [];
+        this.isSelectingMapPoints = false;
         
         // マーカーを削除
         this.mapMarkers.forEach(marker => marker.remove());
@@ -602,6 +737,11 @@ export class OverlayManager {
         this.updatePointsDisplay();
         this.applyButton.disabled = true;
         this.applyButton.textContent = '位置合わせを実行';
+        
+        // 画像ウィンドウの点もクリア
+        if (this.imageWindow) {
+            this.imageWindow.clearPoints();
+        }
         
         // 選択を再開
         if (this.imageData) {

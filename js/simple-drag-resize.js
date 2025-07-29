@@ -7,6 +7,7 @@ export class SimpleDragResizeWindow {
         this.isDragging = false;
         this.isResizing = false;
         this.currentHandle = null;
+        this.selectedPoints = []; // 選択された2点を保存
         
         this.createWindow();
     }
@@ -182,6 +183,123 @@ export class SimpleDragResizeWindow {
         }
     }
     
+    handleCanvasClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // キャンバス座標を画像座標に変換
+        const imageX = (x / this.canvas.width) * this.imageData.width;
+        const imageY = (y / this.canvas.height) * this.imageData.height;
+        
+        const clickedPoint = { x: imageX, y: imageY, canvasX: x, canvasY: y };
+        
+        // 既存の点をクリックした場合は削除
+        const tolerance = 15; // クリック判定の許容範囲
+        for (let i = this.selectedPoints.length - 1; i >= 0; i--) {
+            const point = this.selectedPoints[i];
+            const distance = Math.sqrt(
+                Math.pow(point.canvasX - x, 2) + Math.pow(point.canvasY - y, 2)
+            );
+            
+            if (distance <= tolerance) {
+                // 最後に選択した点のみ削除可能
+                if (i === this.selectedPoints.length - 1) {
+                    this.selectedPoints.splice(i, 1);
+                    this.redrawWithPoints();
+                    if (this.onPointClick) {
+                        this.onPointClick({ type: 'pointRemoved', points: this.selectedPoints });
+                    }
+                    return;
+                }
+            }
+        }
+        
+        // 新しい点を追加（最大2点）
+        if (this.selectedPoints.length < 2) {
+            this.selectedPoints.push(clickedPoint);
+            this.redrawWithPoints();
+            
+            if (this.onPointClick) {
+                this.onPointClick({ 
+                    type: 'pointAdded', 
+                    point: clickedPoint, 
+                    points: this.selectedPoints 
+                });
+            }
+        }
+    }
+    
+    redrawWithPoints() {
+        // 画像を再描画してから点を追加
+        const img = new Image();
+        img.onload = () => {
+            const ctx = this.canvas.getContext('2d');
+            const width = this.canvas.width;
+            const height = this.canvas.height;
+            
+            // 画像をクリアして再描画
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // 参考線を描画
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            // 左上の角
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(40, 0);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, 40);
+            ctx.stroke();
+            
+            // 右下の角
+            ctx.beginPath();
+            ctx.moveTo(width - 40, height);
+            ctx.lineTo(width, height);
+            ctx.moveTo(width, height - 40);
+            ctx.lineTo(width, height);
+            ctx.stroke();
+            
+            // ラベル
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('1.左上', 5, 15);
+            ctx.fillText('2.右下', width - 45, height - 5);
+            
+            // 選択された点を描画
+            ctx.setLineDash([]); // 線のスタイルをリセット
+            this.selectedPoints.forEach((point, index) => {
+                ctx.fillStyle = index === 0 ? '#27ae60' : '#e74c3c';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                
+                ctx.beginPath();
+                ctx.arc(point.canvasX, point.canvasY, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 番号を表示
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText((index + 1).toString(), point.canvasX, point.canvasY + 4);
+            });
+        };
+        img.src = this.imageData.url;
+    }
+    
+    clearPoints() {
+        this.selectedPoints = [];
+        this.redrawWithPoints();
+    }
+    
+    getSelectedPoints() {
+        return this.selectedPoints;
+    }
+    
     setupEvents() {
         // ドラッグイベント
         // ×ボタン専用のクリックイベント
@@ -221,8 +339,8 @@ export class SimpleDragResizeWindow {
                 const resizePosition = this.getResizePosition(e);
                 if (resizePosition) {
                     this.startResize(e, resizePosition);
-                } else if (this.onPointClick) {
-                    this.onPointClick(e);
+                } else {
+                    this.handleCanvasClick(e);
                 }
             }
         });
@@ -373,7 +491,32 @@ export class SimpleDragResizeWindow {
             ctx.fillText('1.左上', 5, 15);
             ctx.fillText('2.右下', width - 45, height - 5);
             
-            // リサイズハンドルは削除済み
+            // 選択された点も再描画（リサイズ後の座標に調整）
+            ctx.setLineDash([]); // 線のスタイルをリセット
+            this.selectedPoints.forEach((point, index) => {
+                // リサイズ後の座標に変換
+                const newCanvasX = (point.x / this.imageData.width) * width;
+                const newCanvasY = (point.y / this.imageData.height) * height;
+                
+                // 新しい座標を保存
+                point.canvasX = newCanvasX;
+                point.canvasY = newCanvasY;
+                
+                ctx.fillStyle = index === 0 ? '#27ae60' : '#e74c3c';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                
+                ctx.beginPath();
+                ctx.arc(newCanvasX, newCanvasY, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 番号を表示
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText((index + 1).toString(), newCanvasX, newCanvasY + 4);
+            });
         };
         img.src = this.imageData.url;
     }
