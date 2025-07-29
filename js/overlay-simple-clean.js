@@ -135,6 +135,17 @@ export class OverlayManager {
         
         // 初期状態の指示を表示
         this.updateInstructionText();
+        
+        // マップのカーソルを十字に設定
+        this.setMapCursor('crosshair');
+    }
+    
+    setMapCursor(cursor) {
+        // 地図コンテナのカーソルを設定
+        const mapContainer = this.map.getContainer();
+        if (mapContainer) {
+            mapContainer.style.cursor = cursor;
+        }
     }
     
     showImageWindow() {
@@ -198,6 +209,11 @@ export class OverlayManager {
     updateInstructionText() {
         const info = this.overlaySection.querySelector('.info');
         
+        // 画像選択中はマップのカーソルを通常に戻す
+        if (this.imagePoints.length < 2) {
+            this.setMapCursor('');
+        }
+        
         if (this.imagePoints.length === 0) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
@@ -227,6 +243,9 @@ export class OverlayManager {
                 </div>
             `;
         } else if (this.imagePoints.length === 2 && this.mapPoints.length === 0) {
+            // 地図選択開始時にカーソルを十字に設定
+            this.setMapCursor('crosshair');
+            
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
                     📍 地図上で対応する2点を選択してください
@@ -534,6 +553,9 @@ export class OverlayManager {
             this.imageWindow.close();
         }
         
+        // マップのカーソルを元に戻す
+        this.setMapCursor('');
+        
         // 完了通知
         if (this.onOverlayApplied) {
             this.onOverlayApplied();
@@ -714,6 +736,9 @@ export class OverlayManager {
         if (uploadArea) uploadArea.style.display = 'block';
         if (previewImage) previewImage.src = '';
         if (fileInput) fileInput.value = '';
+        
+        // マップのカーソルを元に戻す
+        this.setMapCursor('');
         
         // 画像データをクリア
         this.imageData = null;
