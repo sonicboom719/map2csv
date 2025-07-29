@@ -217,28 +217,28 @@ export class OverlayManager {
         if (this.imagePoints.length === 0) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 画像上で2点を選択してください
+                    📍 画像上で2点を選択します
                 </div>
                 <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
                     <div style="font-size: 16px; font-weight: bold; color: #27ae60; margin-bottom: 8px;">
-                        ステップ1: 画像の1点目をクリック
+                        STEP1: 画像の1点目をCLICK
                     </div>
                     <div style="font-size: 14px; color: #2d5a2d;">
-                        右の画像ウィンドウで最初の基準点をクリックしてください
+                        右の画像ウィンドウで最初の基準点をCLICKしてください
                     </div>
                 </div>
             `;
         } else if (this.imagePoints.length === 1) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 画像上で2点目を選択してください
+                    📍 画像上で2点目を選択します
                 </div>
                 <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
                     <div style="font-size: 16px; font-weight: bold; color: #e67e22; margin-bottom: 8px;">
-                        ステップ2: 画像の2点目をクリック
+                        STEP2: 画像の2点目をCLICK
                     </div>
                     <div style="font-size: 14px; color: #856404;">
-                        右の画像ウィンドウで2番目の基準点をクリックしてください
+                        右の画像ウィンドウで2番目の基準点をCLICKしてください
                     </div>
                 </div>
             `;
@@ -252,24 +252,24 @@ export class OverlayManager {
                 </div>
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
                     <div style="font-size: 16px; font-weight: bold; color: #1976d2; margin-bottom: 8px;">
-                        ステップ3: 地図の1点目をクリック
+                        STEP3: 地図の1点目をCLICK
                     </div>
                     <div style="font-size: 14px; color: #0d47a1;">
-                        画像の1点目に対応する地図上の場所をクリックしてください
+                        画像の1点目に対応する地図上の場所をCLICKしてください
                     </div>
                 </div>
             `;
         } else if (this.imagePoints.length === 2 && this.mapPoints.length === 1) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 地図上で2点目を選択してください
+                    📍 地図上で2点目を選択します
                 </div>
                 <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9c27b0;">
                     <div style="font-size: 16px; font-weight: bold; color: #7b1fa2; margin-bottom: 8px;">
-                        ステップ4: 地図の2点目をクリック
+                        STEP4: 地図の2点目をCLICK
                     </div>
                     <div style="font-size: 14px; color: #4a148c;">
-                        画像の2点目に対応する地図上の場所をクリックしてください
+                        画像の2点目に対応する地図上の場所をCLICKしてください
                     </div>
                 </div>
             `;
@@ -283,7 +283,7 @@ export class OverlayManager {
                         準備完了 🎉
                     </div>
                     <div style="font-size: 14px; color: #155724;">
-                        「位置合わせを実行」をクリックして画像を配置してください
+                        「位置合わせを実行」をCLICKして画像を配置してください
                     </div>
                 </div>
             `;
@@ -425,7 +425,7 @@ export class OverlayManager {
             div.style.fontWeight = 'bold';
             div.innerHTML = `
                 <span class="point-number" style="background-color: ${nextIndex === 0 ? '#27ae60' : '#e74c3c'};">${nextIndex + 1}</span> 
-                画像${nextIndex + 1} ← 次にクリック
+                画像${nextIndex + 1} ← 次にCLICK
             `;
             this.imagePointsDiv.appendChild(div);
         }
@@ -451,7 +451,7 @@ export class OverlayManager {
             div.style.fontWeight = 'bold';
             div.innerHTML = `
                 <span class="point-number" style="background-color: ${nextIndex === 0 ? '#27ae60' : '#e74c3c'};">${nextIndex + 1}</span> 
-                地図${nextIndex + 1} ← 次にクリック
+                地図${nextIndex + 1} ← 次にCLICK
             `;
             this.mapPointsDiv.appendChild(div);
         }
@@ -642,7 +642,7 @@ export class OverlayManager {
         
         // UIの更新
         this.applyButton.disabled = true;
-        this.applyButton.textContent = '配置完了';
+        this.applyButton.style.display = 'none';
         
         const info = this.overlaySection.querySelector('.info');
         info.innerHTML = `
@@ -650,7 +650,7 @@ export class OverlayManager {
                 🎉 画像が地図に配置されました！
             </div>
             <div style="font-size: 14px; margin-bottom: 15px; color: #155724;">
-                地図上をクリックしてピンを配置し、施設情報を入力してください
+                地図上をCLICKしてピンを配置し、施設情報を入力してください
             </div>
             <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; font-size: 13px;">
                 💡 <strong>便利機能:</strong><br>
@@ -706,7 +706,7 @@ export class OverlayManager {
         `;
         
         const closeBtn = document.createElement('div');
-        closeBtn.innerHTML = '✕ 閉じる（クリック）';
+        closeBtn.innerHTML = '✕ 閉じる（CLICK）';
         closeBtn.style.cssText = `
             position: absolute;
             top: 20px;
@@ -775,7 +775,7 @@ export class OverlayManager {
                 赤と緑のマーカーをドラッグして位置を調整できます
             </div>
             <div style="background: #fff3cd; padding: 10px; border-radius: 4px; font-size: 13px;">
-                💡 位置が決まったら「位置合わせを実行」をクリック
+                💡 位置が決まったら「位置合わせを実行」をCLICK
             </div>
         `;
         info.style.backgroundColor = '#fef9e7';
@@ -798,8 +798,10 @@ export class OverlayManager {
         // オーバーレイセクションを非表示
         this.overlaySection.style.display = 'none';
         
-        // ピンセクションも非表示
+        // 右サイドバーとピンセクションも非表示
+        const rightSidebar = document.getElementById('rightSidebar');
         const pinSection = document.getElementById('pinSection');
+        if (rightSidebar) rightSidebar.style.display = 'none';
         if (pinSection) pinSection.style.display = 'none';
         
         // 元のキャンバスも非表示

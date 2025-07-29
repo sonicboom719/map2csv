@@ -70,9 +70,9 @@ export class PinManager {
         const marker = L.marker(latlng, {
             icon: L.divIcon({
                 className: 'custom-marker',
-                html: `<div class="custom-marker">${pin.id}</div>`,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
+                html: `<div class="custom-marker"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
             })
         }).addTo(this.map);
         
@@ -110,13 +110,12 @@ export class PinManager {
         this.currentPin.number = this.pinNumberInput.value.trim();
         this.currentPin.memo = this.pinMemoInput.value.trim();
         
-        // マーカーの表示を更新
-        const displayText = this.currentPin.number || this.currentPin.id.toString();
+        // マーカーの表示を更新（常に赤●のまま）
         this.currentPin.marker.setIcon(L.divIcon({
             className: 'custom-marker',
-            html: `<div class="custom-marker">${displayText}</div>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
+            html: `<div class="custom-marker"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
         }));
         
         this.updatePinList();
@@ -186,9 +185,7 @@ export class PinManager {
             deleteButton.textContent = '削除';
             deleteButton.className = 'btn-small';
             deleteButton.addEventListener('click', () => {
-                if (confirm('このピンを削除しますか？')) {
-                    this.removePin(pin.id);
-                }
+                this.removePin(pin.id);
             });
             
             actionsDiv.appendChild(editButton);

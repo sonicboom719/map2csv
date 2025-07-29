@@ -16,13 +16,23 @@ body {
     height: 100vh;
 }
 
-/* サイドバー */
+/* 左サイドバー */
 .sidebar {
     width: 350px;
     background: white;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
     overflow-y: auto;
     padding: 20px;
+}
+
+/* 右サイドバー */
+.right-sidebar {
+    width: 350px;
+    background: white;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    overflow-y: auto;
+    padding: 20px;
+    order: 3;
 }
 
 .sidebar h1 {
@@ -146,10 +156,9 @@ button {
 
 /* ポイント選択状態 */
 .points-list {
-    min-height: 100px;
     background-color: #f8f9fa;
     border-radius: 4px;
-    padding: 10px;
+    padding: 8px;
     margin-bottom: 10px;
 }
 
@@ -182,8 +191,8 @@ button {
 
 .pin-item {
     background-color: #f8f9fa;
-    padding: 10px;
-    margin-bottom: 10px;
+    padding: 6px;
+    margin-bottom: 8px;
     border-radius: 4px;
     display: flex;
     justify-content: space-between;
@@ -213,18 +222,21 @@ button {
 
 .pin-actions {
     display: flex;
-    gap: 5px;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .pin-actions button {
     padding: 4px 8px;
     font-size: 12px;
+    width: 100%;
 }
 
 /* 地図コンテナ */
 .map-container {
     flex: 1;
     position: relative;
+    order: 2;
 }
 
 #map {
@@ -304,8 +316,8 @@ button {
     background-color: #e74c3c;
     color: white;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;

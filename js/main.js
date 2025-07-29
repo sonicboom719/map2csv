@@ -137,7 +137,8 @@ class App {
     // handleImageRemovedメソッドは削除（×ボタンから直接OverlayManager.deleteImage()が呼ばれる）
     
     handleOverlayApplied() {
-        // オーバーレイが適用されたらピンセクションを表示
+        // オーバーレイが適用されたら右サイドバーとピンセクションを表示
+        document.getElementById('rightSidebar').style.display = 'block';
         document.getElementById('pinSection').style.display = 'block';
         this.pinManager.enable();
     }
