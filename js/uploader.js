@@ -4,8 +4,8 @@ export class ImageUploader {
         this.fileInput = options.fileInput;
         this.previewImage = options.previewImage;
         this.uploadedImageDiv = options.uploadedImageDiv;
-        this.removeButton = options.removeButton;
         this.onImageLoaded = options.onImageLoaded;
+        this.onImageRemoved = options.onImageRemoved;
         
         this.currentImageData = null;
         
@@ -46,10 +46,7 @@ export class ImageUploader {
             }
         });
         
-        // 画像削除ボタン
-        this.removeButton.addEventListener('click', () => {
-            this.removeImage();
-        });
+        // 削除ボタンは削除されたのでこの処理も削除
     }
     
     async handleFile(file) {
@@ -138,15 +135,5 @@ export class ImageUploader {
         }
     }
     
-    removeImage() {
-        this.currentImageData = null;
-        this.previewImage.src = '';
-        this.uploadArea.style.display = 'block';
-        this.uploadedImageDiv.style.display = 'none';
-        this.fileInput.value = '';
-        
-        // オーバーレイセクションとピンセクションを非表示に
-        document.getElementById('overlaySection').style.display = 'none';
-        document.getElementById('pinSection').style.display = 'none';
-    }
+    // removeImageメソッドは削除（×ボタンから直接OverlayManager.deleteImage()が呼ばれる）
 }

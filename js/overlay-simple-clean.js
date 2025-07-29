@@ -106,12 +106,28 @@ export class OverlayManager {
     }
     
     setImage(imageData) {
+        console.log('OverlayManager.setImage called with:', imageData);
+        
+        // 古い画像ウィンドウがあれば閉じる
+        if (this.imageWindow) {
+            console.log('Closing existing image window');
+            this.imageWindow.close();
+            this.imageWindow = null;
+        }
+        
         this.imageData = imageData;
-        this.resetPoints();
+        console.log('imageData set to:', this.imageData);
+        
+        this.resetPointsOnly();  // resetPointsから画像ウィンドウ処理を除外した版を呼ぶ
+        console.log('resetPointsOnly completed');
+        
         this.startMapSelection();
+        console.log('startMapSelection completed');
     }
     
     startMapSelection() {
+        console.log('startMapSelection called with imageData:', this.imageData);
+        
         // シンプルなドラッグ&リサイズウィンドウを表示
         this.showImageWindow();
         
@@ -140,15 +156,25 @@ export class OverlayManager {
     }
     
     showImageWindow() {
+        console.log('showImageWindow called with imageData:', this.imageData);
+        
         // 既存のウィンドウがあれば閉じる
         if (this.imageWindow) {
             this.imageWindow.close();
+        }
+        
+        if (!this.imageData) {
+            console.error('imageData is null or undefined in showImageWindow');
+            return;
         }
         
         // 新しいシンプルなドラッグ&リサイズウィンドウを作成
         this.imageWindow = new SimpleDragResizeWindow(this.imageData, (e) => {
             // キャンバスクリック時の処理（特になし）
             console.log('Image window canvas clicked');
+        }, () => {
+            // ×ボタンクリック時の削除処理
+            this.deleteImage();
         });
         
         // 元のキャンバスは非表示
@@ -471,6 +497,77 @@ export class OverlayManager {
         info.style.color = '#856404';
     }
     
+    deleteImage() {
+        console.log('deleteImage called');
+        
+        // 画像ウィンドウを先に閉じる
+        if (this.imageWindow) {
+            console.log('Closing image window');
+            this.imageWindow.close();
+            this.imageWindow = null;
+        }
+        
+        // 全ての表示要素をリセット（画像ウィンドウは既に閉じているのでresetPointsOnlyを使用）
+        this.resetPointsOnly();
+        
+        // オーバーレイセクションを非表示
+        this.overlaySection.style.display = 'none';
+        
+        // ピンセクションも非表示
+        const pinSection = document.getElementById('pinSection');
+        if (pinSection) pinSection.style.display = 'none';
+        
+        // 元のキャンバスも非表示
+        this.imageCanvas.style.display = 'none';
+        
+        // サイドバーの画像表示もリセット
+        const uploadedImageDiv = document.getElementById('uploadedImage');
+        const uploadArea = document.getElementById('uploadArea');
+        const previewImage = document.getElementById('previewImage');
+        const fileInput = document.getElementById('fileInput');
+        
+        if (uploadedImageDiv) uploadedImageDiv.style.display = 'none';
+        if (uploadArea) uploadArea.style.display = 'block';
+        if (previewImage) previewImage.src = '';
+        if (fileInput) fileInput.value = '';
+        
+        // 画像データをクリア
+        this.imageData = null;
+        
+        console.log('deleteImage completed');
+    }
+    
+    resetPointsOnly() {
+        // setImage用のリセット（画像ウィンドウは閉じない）
+        this.mapPoints = [];
+        
+        // マーカーを削除
+        this.mapMarkers.forEach(marker => marker.remove());
+        this.mapMarkers = [];
+        
+        // オーバーレイを削除
+        if (this.overlayLayer) {
+            this.map.removeLayer(this.overlayLayer);
+            this.overlayLayer = null;
+        }
+        
+        // プレビュー四角形を削除
+        if (this.previewRectangle) {
+            this.map.removeLayer(this.previewRectangle);
+            this.previewRectangle = null;
+        }
+        
+        // コントロールパネルを非表示
+        const imageControls = document.getElementById('imageControls');
+        if (imageControls) {
+            imageControls.style.display = 'none';
+        }
+        
+        this.updatePointsDisplay();
+        this.applyButton.disabled = true;
+        this.applyButton.textContent = '位置合わせを実行';
+    }
+    
     resetPoints() {
         this.mapPoints = [];
         
@@ -493,10 +590,14 @@ export class OverlayManager {
         // 画像ウィンドウを閉じる
         if (this.imageWindow) {
             this.imageWindow.close();
+            this.imageWindow = null;
         }
         
         // コントロールパネルを非表示
-        document.getElementById('imageControls').style.display = 'none';
+        const imageControls = document.getElementById('imageControls');
+        if (imageControls) {
+            imageControls.style.display = 'none';
+        }
         
         this.updatePointsDisplay();
         this.applyButton.disabled = true;

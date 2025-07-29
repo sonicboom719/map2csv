@@ -25,7 +25,6 @@ class App {
             fileInput: document.getElementById('fileInput'),
             previewImage: document.getElementById('previewImage'),
             uploadedImageDiv: document.getElementById('uploadedImage'),
-            removeButton: document.getElementById('removeImage'),
             onImageLoaded: (imageData) => this.handleImageLoaded(imageData)
         });
         
@@ -129,10 +128,13 @@ class App {
     }
     
     handleImageLoaded(imageData) {
+        console.log('handleImageLoaded called with:', imageData);
         // 画像が読み込まれたらオーバーレイセクションを表示
         document.getElementById('overlaySection').style.display = 'block';
         this.overlayManager.setImage(imageData);
     }
+    
+    // handleImageRemovedメソッドは削除（×ボタンから直接OverlayManager.deleteImage()が呼ばれる）
     
     handleOverlayApplied() {
         // オーバーレイが適用されたらピンセクションを表示

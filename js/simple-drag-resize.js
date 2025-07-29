@@ -1,8 +1,9 @@
 // シンプルなドラッグ&リサイズウィンドウクラス
 export class SimpleDragResizeWindow {
-    constructor(imageData, onPointClick) {
+    constructor(imageData, onPointClick, onClose) {
         this.imageData = imageData;
         this.onPointClick = onPointClick;
+        this.onClose = onClose;
         this.isDragging = false;
         this.isResizing = false;
         this.currentHandle = null;
@@ -227,9 +228,25 @@ export class SimpleDragResizeWindow {
     
     setupEvents() {
         // ドラッグイベント
+        // ×ボタン専用のクリックイベント
+        const closeButton = this.titleBar.querySelector('#closeWindow');
+        if (closeButton) {
+            closeButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Close button clicked');
+                
+                // onCloseコールバックを呼び出し（これが削除処理を実行）
+                if (this.onClose) {
+                    this.onClose();
+                }
+            });
+        }
+        
+        // タイトルバーのドラッグイベント（×ボタン以外）
         this.titleBar.addEventListener('mousedown', (e) => {
             if (e.target.id === 'closeWindow') {
-                this.close();
+                // ×ボタンの場合は何もしない（上で処理済み）
                 return;
             }
             
@@ -398,8 +415,29 @@ export class SimpleDragResizeWindow {
     }
     
     close() {
-        if (this.container) {
-            this.container.remove();
+        console.log('SimpleDragResizeWindow close called');
+        
+        // リサイズハンドルを削除
+        if (this.handles) {
+            this.handles.forEach(handle => {
+                if (handle.element && handle.element.parentNode) {
+                    handle.element.remove();
+                }
+            });
+            this.handles = [];
         }
+        
+        // メインコンテナを削除
+        if (this.container && this.container.parentNode) {
+            this.container.remove();
+            this.container = null;
+        }
+        
+        // イベントリスナーをクリア
+        this.isDragging = false;
+        this.isResizing = false;
+        this.currentHandle = null;
+        
+        console.log('SimpleDragResizeWindow closed');
     }
 }
