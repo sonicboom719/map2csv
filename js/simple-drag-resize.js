@@ -30,20 +30,18 @@ export class SimpleDragResizeWindow {
         // タイトルバー（ドラッグハンドル）
         this.titleBar = document.createElement('div');
         this.titleBar.style.cssText = `
-            background: #e74c3c;
+            background: #3498db;
             color: white;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: bold;
+            padding: 6px 12px;
             cursor: move;
             user-select: none;
             border-radius: 8px 8px 0 0;
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
+            height: 30px;
         `;
         this.titleBar.innerHTML = `
-            <span>📷 このバーをドラッグして移動・4隅の青い丸でリサイズ</span>
             <button id="closeWindow" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 4px;">×</button>
         `;
         
@@ -74,9 +72,6 @@ export class SimpleDragResizeWindow {
         // 画像を描画
         this.drawImage();
         
-        // リサイズハンドルを作成
-        this.createResizeHandles();
-        
         // イベントを設定
         this.setupEvents();
     }
@@ -92,7 +87,7 @@ export class SimpleDragResizeWindow {
                 height = this.canvas.height;
             } else {
                 // 初期表示時は適切なサイズに調整
-                const maxSize = 400;
+                const maxSize = 600;
                 width = img.width;
                 height = img.height;
                 
@@ -137,93 +132,54 @@ export class SimpleDragResizeWindow {
             ctx.fillText('1.左上', 5, 15);
             ctx.fillText('2.右下', width - 45, height - 5);
             
-            // リサイズハンドルの位置を更新
-            this.updateResizeHandles();
+            // リサイズハンドルは削除
         };
         img.src = this.imageData.url;
     }
     
-    createResizeHandles() {
-        this.handles = [];
-        const positions = ['nw', 'ne', 'se', 'sw'];
+    // createResizeHandlesメソッドは削除（4隅のマウスカーソル変更で対応）
+    
+    // 4隅のリサイズ判定とカーソル変更
+    getResizePosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const cornerSize = 20; // 角の判定エリアサイズ
+        
+        // 左上
+        if (x <= cornerSize && y <= cornerSize) {
+            return 'nw';
+        }
+        // 右上
+        if (x >= rect.width - cornerSize && y <= cornerSize) {
+            return 'ne';
+        }
+        // 右下
+        if (x >= rect.width - cornerSize && y >= rect.height - cornerSize) {
+            return 'se';
+        }
+        // 左下
+        if (x <= cornerSize && y >= rect.height - cornerSize) {
+            return 'sw';
+        }
+        
+        return null;
+    }
+    
+    updateCursor(e) {
+        const position = this.getResizePosition(e);
         const cursors = {
             'nw': 'nw-resize',
-            'ne': 'ne-resize', 
+            'ne': 'ne-resize',
             'se': 'se-resize',
             'sw': 'sw-resize'
         };
         
-        positions.forEach(pos => {
-            const handle = document.createElement('div');
-            handle.className = `resize-handle-${pos}`;
-            handle.style.cssText = `
-                position: absolute;
-                width: 20px;
-                height: 20px;
-                background: #3498db;
-                border: 3px solid white;
-                border-radius: 50%;
-                cursor: ${cursors[pos]};
-                z-index: 10;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-                transition: transform 0.2s ease;
-            `;
-            
-            // ホバー効果
-            handle.addEventListener('mouseenter', () => {
-                handle.style.transform = 'scale(1.2)';
-                handle.style.background = '#2980b9';
-            });
-            
-            handle.addEventListener('mouseleave', () => {
-                handle.style.transform = 'scale(1)';
-                handle.style.background = '#3498db';
-            });
-            
-            // リサイズイベント
-            handle.addEventListener('mousedown', (e) => {
-                this.startResize(e, pos);
-            });
-            
-            this.imageArea.appendChild(handle);
-            this.handles.push({element: handle, position: pos});
-        });
-    }
-    
-    updateResizeHandles() {
-        if (!this.handles) return;
-        
-        const canvasRect = this.canvas.getBoundingClientRect();
-        const containerRect = this.imageArea.getBoundingClientRect();
-        
-        this.handles.forEach(handle => {
-            const pos = handle.position;
-            const element = handle.element;
-            
-            let left, top;
-            
-            switch(pos) {
-                case 'nw': // 左上
-                    left = canvasRect.left - containerRect.left - 10;
-                    top = canvasRect.top - containerRect.top - 10;
-                    break;
-                case 'ne': // 右上
-                    left = canvasRect.right - containerRect.left - 10;
-                    top = canvasRect.top - containerRect.top - 10;
-                    break;
-                case 'se': // 右下
-                    left = canvasRect.right - containerRect.left - 10;
-                    top = canvasRect.bottom - containerRect.top - 10;
-                    break;
-                case 'sw': // 左下
-                    left = canvasRect.left - containerRect.left - 10;
-                    top = canvasRect.bottom - containerRect.top - 10;
-                    break;
-            }
-            
-            element.style.left = left + 'px';
-            element.style.top = top + 'px';
-        });
+        if (position) {
+            this.canvas.style.cursor = cursors[position];
+        } else {
+            this.canvas.style.cursor = 'crosshair';
+        }
     }
     
     setupEvents() {
@@ -253,10 +209,27 @@ export class SimpleDragResizeWindow {
             this.startDrag(e);
         });
         
-        // キャンバスクリックイベント
-        this.canvas.addEventListener('click', (e) => {
-            if (!this.isDragging && !this.isResizing && this.onPointClick) {
-                this.onPointClick(e);
+        // キャンバスのマウスイベント
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (!this.isDragging && !this.isResizing) {
+                this.updateCursor(e);
+            }
+        });
+        
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (!this.isDragging) {
+                const resizePosition = this.getResizePosition(e);
+                if (resizePosition) {
+                    this.startResize(e, resizePosition);
+                } else if (this.onPointClick) {
+                    this.onPointClick(e);
+                }
+            }
+        });
+        
+        this.canvas.addEventListener('mouseleave', () => {
+            if (!this.isDragging && !this.isResizing) {
+                this.canvas.style.cursor = 'crosshair';
             }
         });
         
@@ -345,7 +318,7 @@ export class SimpleDragResizeWindow {
         }
         
         // サイズ制限
-        newWidth = Math.max(200, Math.min(800, newWidth));
+        newWidth = Math.max(200, Math.min(1200, newWidth));
         
         // アスペクト比維持
         if (this.imageData) {
@@ -354,7 +327,7 @@ export class SimpleDragResizeWindow {
         }
         
         // サイズ制限（高さも）
-        newHeight = Math.max(150, Math.min(600, newHeight));
+        newHeight = Math.max(150, Math.min(900, newHeight));
         
         console.log(`Resizing to: ${newWidth}x${newHeight}`);
         
@@ -400,8 +373,7 @@ export class SimpleDragResizeWindow {
             ctx.fillText('1.左上', 5, 15);
             ctx.fillText('2.右下', width - 45, height - 5);
             
-            // ハンドル位置を更新
-            setTimeout(() => this.updateResizeHandles(), 10);
+            // リサイズハンドルは削除済み
         };
         img.src = this.imageData.url;
     }
@@ -416,16 +388,6 @@ export class SimpleDragResizeWindow {
     
     close() {
         console.log('SimpleDragResizeWindow close called');
-        
-        // リサイズハンドルを削除
-        if (this.handles) {
-            this.handles.forEach(handle => {
-                if (handle.element && handle.element.parentNode) {
-                    handle.element.remove();
-                }
-            });
-            this.handles = [];
-        }
         
         // メインコンテナを削除
         if (this.container && this.container.parentNode) {
