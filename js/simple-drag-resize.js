@@ -49,7 +49,7 @@ export class SimpleDragResizeWindow {
         this.imageArea = document.createElement('div');
         this.imageArea.style.cssText = `
             position: relative;
-            padding: 15px;
+            padding: 5px;
             background: white;
             border-radius: 0 0 8px 8px;
         `;
