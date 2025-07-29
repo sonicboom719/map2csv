@@ -592,6 +592,11 @@ export class OverlayManager {
             this.imageCanvas.style.left = (dragState.startLeft + deltaX) + 'px';
             this.imageCanvas.style.top = (dragState.startTop + deltaY) + 'px';
             
+            // ハンドル位置も更新
+            if (this.updateHandlePositions) {
+                setTimeout(() => this.updateHandlePositions(), 10);
+            }
+            
             e.preventDefault();
         };
         
@@ -631,6 +636,296 @@ export class OverlayManager {
             this.imageCanvas.style.border = '2px solid #3498db';
         });
         
-        console.log('Canvas drag setup complete');
+        // リサイズ機能を追加（遅延実行）
+        setTimeout(() => {
+            console.log('Adding resize handles after delay');
+            this.addResizeHandles();
+        }, 200);
+        
+        console.log('Canvas drag and resize setup complete');
+    }
+    
+    addResizeHandles() {
+        console.log('Adding resize handles to canvas');
+        
+        // 既存のハンドルを削除
+        const existingHandles = document.getElementById('resizeHandleContainer');
+        if (existingHandles) {
+            existingHandles.remove();
+        }
+        
+        // リサイズハンドルのコンテナ
+        const handleContainer = document.createElement('div');
+        handleContainer.id = 'resizeHandleContainer';
+        handleContainer.style.cssText = `
+            position: fixed;
+            pointer-events: none;
+            z-index: 1600;
+        `;
+        document.body.appendChild(handleContainer);
+        console.log('Handle container added to body');
+        
+        // コンテナが正しく追加されたか確認
+        const addedContainer = document.getElementById('resizeHandleContainer');
+        if (addedContainer) {
+            console.log('Container successfully added, children count:', addedContainer.children.length);
+        } else {
+            console.error('Failed to add container to DOM');
+        }
+        
+        // 4つのハンドル位置
+        const handles = [
+            { pos: 'nw', cursor: 'nw-resize' },
+            { pos: 'ne', cursor: 'ne-resize' },
+            { pos: 'se', cursor: 'se-resize' },
+            { pos: 'sw', cursor: 'sw-resize' }
+        ];
+        
+        handles.forEach((handleInfo, index) => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle resize-${handleInfo.pos}`;
+            handle.id = `resize-handle-${handleInfo.pos}`;
+            
+            // スタイルを直接設定
+            handle.style.position = 'fixed';
+            handle.style.width = '24px';
+            handle.style.height = '24px';
+            handle.style.background = '#3498db';
+            handle.style.border = '4px solid white';
+            handle.style.borderRadius = '50%';
+            handle.style.cursor = handleInfo.cursor;
+            handle.style.pointerEvents = 'auto';
+            handle.style.boxShadow = '0 6px 15px rgba(0,0,0,0.4)';
+            handle.style.opacity = '1';
+            handle.style.transition = 'all 0.2s ease';
+            handle.style.zIndex = '1700';
+            handle.style.display = 'block';
+            
+            // 初期位置（テスト用）
+            handle.style.left = (200 + index * 50) + 'px';
+            handle.style.top = (200 + index * 50) + 'px';
+            
+            // ホバーエフェクト
+            handle.addEventListener('mouseenter', () => {
+                handle.style.transform = 'scale(1.3)';
+                handle.style.background = '#2980b9';
+                console.log(`Hover on ${handleInfo.pos} handle`);
+            });
+            
+            handle.addEventListener('mouseleave', () => {
+                handle.style.transform = 'scale(1)';
+                handle.style.background = '#3498db';
+            });
+            
+            // クリックテスト
+            handle.addEventListener('click', () => {
+                console.log(`Handle ${handleInfo.pos} clicked!`);
+                alert(`Handle ${handleInfo.pos} がクリックされました`);
+            });
+            
+            // リサイズイベント
+            this.setupResizeHandle(handle, handleInfo.pos);
+            
+            handleContainer.appendChild(handle);
+            console.log(`Created handle ${handleInfo.pos} with ID: ${handle.id}`);
+        });
+        
+        console.log(`Total handles created: ${handles.length}`);
+        console.log('Handle container:', handleContainer);
+        
+        // リサイズ状態を初期化
+        this.resizeState = {
+            isResizing: false,
+            currentHandle: null,
+            startX: 0,
+            startY: 0,
+            startWidth: 0,
+            startHeight: 0
+        };
+        
+        // 初期位置を設定（遅延実行）
+        setTimeout(() => {
+            console.log('Setting initial handle positions');
+            this.updateHandlePositions();
+        }, 300);
+    }
+    
+    updateHandlePositions() {
+        const container = document.getElementById('resizeHandleContainer');
+        if (!container || !this.imageCanvas) {
+            console.log('Cannot update handle positions - missing container or canvas');
+            return;
+        }
+        
+        const canvasRect = this.imageCanvas.getBoundingClientRect();
+        const handles = container.children;
+        
+        console.log('Updating handle positions:', {
+            canvasRect: canvasRect,
+            handleCount: handles.length
+        });
+        
+        if (handles.length >= 4) {
+            // 北西 (nw) - 左上
+            const nwLeft = canvasRect.left - 12;
+            const nwTop = canvasRect.top - 12;
+            handles[0].style.left = nwLeft + 'px';
+            handles[0].style.top = nwTop + 'px';
+            handles[0].style.display = 'block';
+            
+            // 北東 (ne) - 右上
+            const neLeft = canvasRect.right - 12;
+            const neTop = canvasRect.top - 12;
+            handles[1].style.left = neLeft + 'px';
+            handles[1].style.top = neTop + 'px';
+            handles[1].style.display = 'block';
+            
+            // 南東 (se) - 右下
+            const seLeft = canvasRect.right - 12;
+            const seTop = canvasRect.bottom - 12;
+            handles[2].style.left = seLeft + 'px';
+            handles[2].style.top = seTop + 'px';
+            handles[2].style.display = 'block';
+            
+            // 南西 (sw) - 左下
+            const swLeft = canvasRect.left - 12;
+            const swTop = canvasRect.bottom - 12;
+            handles[3].style.left = swLeft + 'px';
+            handles[3].style.top = swTop + 'px';
+            handles[3].style.display = 'block';
+            
+            console.log('Handle positions set:', {
+                nw: `(${nwLeft}, ${nwTop})`,
+                ne: `(${neLeft}, ${neTop})`,
+                se: `(${seLeft}, ${seTop})`,
+                sw: `(${swLeft}, ${swTop})`
+            });
+        } else {
+            console.log('Not enough handles found:', handles.length);
+        }
+    }
+    
+    setupResizeHandle(handle, position) {
+        handle.addEventListener('mousedown', (e) => {
+            console.log(`Resize started with ${position} handle`);
+            
+            this.resizeState.isResizing = true;
+            this.resizeState.currentHandle = position;
+            this.resizeState.startX = e.clientX;
+            this.resizeState.startY = e.clientY;
+            this.resizeState.startWidth = this.imageCanvas.width;
+            this.resizeState.startHeight = this.imageCanvas.height;
+            
+            document.body.style.cursor = handle.style.cursor;
+            document.body.style.userSelect = 'none';
+            
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        
+        // グローバルマウスイベント
+        const handleResize = (e) => {
+            if (!this.resizeState.isResizing) return;
+            
+            const deltaX = e.clientX - this.resizeState.startX;
+            const deltaY = e.clientY - this.resizeState.startY;
+            
+            let newWidth = this.resizeState.startWidth;
+            let newHeight = this.resizeState.startHeight;
+            
+            // ハンドル位置に応じてサイズ計算
+            switch(position) {
+                case 'se': // 右下
+                    newWidth = this.resizeState.startWidth + deltaX;
+                    newHeight = this.resizeState.startHeight + deltaY;
+                    break;
+                case 'sw': // 左下
+                    newWidth = this.resizeState.startWidth - deltaX;
+                    newHeight = this.resizeState.startHeight + deltaY;
+                    break;
+                case 'ne': // 右上
+                    newWidth = this.resizeState.startWidth + deltaX;
+                    newHeight = this.resizeState.startHeight - deltaY;
+                    break;
+                case 'nw': // 左上
+                    newWidth = this.resizeState.startWidth - deltaX;
+                    newHeight = this.resizeState.startHeight - deltaY;
+                    break;
+            }
+            
+            // 最小・最大サイズ制限
+            newWidth = Math.max(200, Math.min(800, newWidth));
+            newHeight = Math.max(150, Math.min(600, newHeight));
+            
+            // アスペクト比維持
+            if (this.imageData) {
+                const aspectRatio = this.imageData.width / this.imageData.height;
+                newHeight = newWidth / aspectRatio;
+            }
+            
+            // キャンバスサイズ更新
+            this.imageCanvas.width = newWidth;
+            this.imageCanvas.height = newHeight;
+            
+            // 画像を再描画
+            this.redrawCanvas();
+            
+            // ハンドル位置更新
+            setTimeout(() => this.updateHandlePositions(), 10);
+        };
+        
+        const stopResize = () => {
+            if (this.resizeState.isResizing) {
+                console.log('Resize ended');
+                this.resizeState.isResizing = false;
+                this.resizeState.currentHandle = null;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        };
+        
+        document.addEventListener('mousemove', handleResize);
+        document.addEventListener('mouseup', stopResize);
+    }
+    
+    redrawCanvas() {
+        if (!this.imageData) return;
+        
+        const img = new Image();
+        img.onload = () => {
+            const ctx = this.imageCanvas.getContext('2d');
+            ctx.clearRect(0, 0, this.imageCanvas.width, this.imageCanvas.height);
+            ctx.drawImage(img, 0, 0, this.imageCanvas.width, this.imageCanvas.height);
+            
+            // 参考線を再描画
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            // 左上の角
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(40, 0);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, 40);
+            ctx.stroke();
+            
+            // 右下の角
+            const width = this.imageCanvas.width;
+            const height = this.imageCanvas.height;
+            ctx.beginPath();
+            ctx.moveTo(width - 40, height);
+            ctx.lineTo(width, height);
+            ctx.moveTo(width, height - 40);
+            ctx.lineTo(width, height);
+            ctx.stroke();
+            
+            // ラベル
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('1.左上', 5, 15);
+            ctx.fillText('2.右下', width - 45, height - 5);
+        };
+        img.src = this.imageData.url;
     }
 }
