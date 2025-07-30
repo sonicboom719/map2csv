@@ -860,7 +860,7 @@ export class OverlayManager {
                 🎉 画像が地図に配置されました！
             </div>
             <div style="font-size: 14px; margin-bottom: 15px; color: #155724;">
-                地図上をCLICKしてピンを配置し、施設情報を入力してください
+                地図上をCLICKしてピンを配置し、掲示場情報を入力してください
             </div>
             <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; font-size: 13px;">
                 💡 <strong>便利機能:</strong><br>

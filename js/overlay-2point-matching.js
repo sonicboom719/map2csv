@@ -609,7 +609,7 @@ export class OverlayManager {
             <div style="background: #fff3cd; padding: 12px; border-radius: 4px; font-size: 13px;">
                 💡 <strong>対応付けのコツ:</strong><br>
                 • 画像の道路パターンと地図の道路パターンを比較<br>
-                • 建物や施設名を手がかりにする<br>
+                • 建物や掲示場名を手がかりにする<br>
                 • 住所検索を活用して大まかな場所を特定
             </div>
         `;

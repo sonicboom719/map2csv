@@ -50,15 +50,18 @@ export class PinManager {
             }
         });
         
-        // ピン番号（表示用）に数字のみ入力可能にする
-        this.pinDisplayNumberInput.addEventListener('input', (e) => {
-            // 数字以外を削除
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-            // 先頭の0を削除（0のみの場合は除く）
-            if (e.target.value.length > 1 && e.target.value[0] === '0') {
-                e.target.value = e.target.value.replace(/^0+/, '');
-            }
-        });
+        // プルダウンメニューに1-100の選択肢を追加
+        this.initializePinNumberDropdown();
+    }
+    
+    initializePinNumberDropdown() {
+        // 1から100までの選択肢を追加
+        for (let i = 1; i <= 100; i++) {
+            const option = document.createElement('option');
+            option.value = i.toString();
+            option.textContent = i.toString();
+            this.pinDisplayNumberInput.appendChild(option);
+        }
     }
     
     enable() {

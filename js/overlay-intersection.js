@@ -454,7 +454,7 @@ export class OverlayManager {
                 🎉 交差点を基準にした画像配置が完了しました！
             </div>
             <div style="font-size: 14px; margin-top: 10px;">
-                地図上をクリックしてピンを配置し、施設情報を入力してください
+                地図上をクリックしてピンを配置し、掲示場情報を入力してください
             </div>
         `;
         info.style.backgroundColor = '#d4edda';

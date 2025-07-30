@@ -92,13 +92,22 @@ body {
 }
 
 /* インプット */
-input[type="text"], textarea {
+input[type="text"], select, textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
     margin-bottom: 10px;
+}
+
+/* セレクトボックス専用スタイル */
+select {
+    height: 36px;
+    font-size: 14px;
+    padding: 10px;
+    background-color: white;
+    cursor: pointer;
 }
 
 textarea {
@@ -389,8 +398,8 @@ button {
 
 /* 選択ポイントマーカー */
 .selection-marker {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     background-color: #3498db;
     border: 2px solid white;
     border-radius: 50%;

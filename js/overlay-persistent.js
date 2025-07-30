@@ -592,7 +592,7 @@ export class OverlayManager {
                 🎉 交差点を基準にした画像配置が完了しました！
             </div>
             <div style="font-size: 14px; margin-top: 10px;">
-                地図上をクリックしてピンを配置し、施設情報を入力してください
+                地図上をクリックしてピンを配置し、掲示場情報を入力してください
             </div>
             <div style="background: #e3f2fd; padding: 8px; border-radius: 4px; font-size: 12px; margin-top: 8px;">
                 💡 右上のコントロールで画像の表示/非表示と透明度を調整できます
