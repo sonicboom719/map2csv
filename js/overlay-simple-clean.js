@@ -562,10 +562,32 @@ export class OverlayManager {
             lng: params.mapPoint2.lng - params.mapOrigin.lng
         };
         
+        // 地図上の2点をピクセル座標に変換して正確な角度を計算
+        const mapPixel1 = this.map.latLngToContainerPoint([params.mapOrigin.lat, params.mapOrigin.lng]);
+        const mapPixel2 = this.map.latLngToContainerPoint([params.mapPoint2.lat, params.mapPoint2.lng]);
+        
+        const mapPixelVector = {
+            x: mapPixel2.x - mapPixel1.x,
+            y: mapPixel2.y - mapPixel1.y
+        };
+        
+        // 画像の角度計算（Y軸下向き）
         const imageAngle = Math.atan2(imageVector.y, imageVector.x);
-        const mapAngle = Math.atan2(mapVector.lat, mapVector.lng);
+        
+        // 地図の角度計算（ピクセル座標、Y軸下向き）
+        const mapAngle = Math.atan2(mapPixelVector.y, mapPixelVector.x);
+        
+        // 同じ座標系での回転角度
         const rotationRadians = mapAngle - imageAngle;
         const rotationDegrees = rotationRadians * 180 / Math.PI;
+        
+        console.log('Corrected angle calculation:', {
+            imageVector: imageVector,
+            mapPixelVector: mapPixelVector,
+            imageAngle: imageAngle * 180 / Math.PI,
+            mapAngle: mapAngle * 180 / Math.PI,
+            rotationDegrees: rotationDegrees
+        });
         
         console.log('Rotation needed:', rotationDegrees, 'degrees');
         
