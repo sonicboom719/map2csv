@@ -27,8 +27,8 @@ export const CONFIG = {
     PINS: {
         MAX_DISPLAY_NUMBER: 999,
         DEFAULT_COLORS: {
-            DEFAULT: '#e74c3c',
-            HOVER: '#f39c12'
+            DEFAULT: '#3498db',  // 赤から青に変更
+            HOVER: '#2980b9'     // ホバー時は少し濃い青
         }
     }
 };

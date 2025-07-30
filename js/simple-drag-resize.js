@@ -561,6 +561,17 @@ export class SimpleDragResizeWindow {
         }
     }
     
+    // 選択された点を外部から設定する
+    setSelectedPoints(points) {
+        if (!this.canvas) return;
+        
+        console.log('Setting selected points:', points);
+        this.selectedPoints = points.map(p => ({...p}));
+        
+        // 選択点を含めて再描画
+        this.redrawWithPoints();
+    }
+    
     close() {
         console.log('SimpleDragResizeWindow close called');
         

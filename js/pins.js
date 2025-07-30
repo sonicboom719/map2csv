@@ -252,7 +252,7 @@ export class PinManager {
             // 表示用番号があれば先頭に#付きで表示
             const displayNumberText = pin.displayNumber ? `#${pin.displayNumber} ` : '';
             const numberText = pin.number || `ピン ${pin.id}`;
-            const nameText = pin.name ? ` - ${pin.name}` : '';
+            const nameText = pin.name ? ` : ${pin.name}` : '';
             numberDiv.textContent = displayNumberText + numberText + nameText;
             
             const coordsDiv = document.createElement('div');
@@ -365,5 +365,24 @@ export class PinManager {
         this.updatePinList();
         
         console.log('All pins cleared');
+    }
+    
+    // ピンの表示/非表示を切り替え
+    hidePins() {
+        this.pins.forEach(pin => {
+            if (pin.marker) {
+                this.map.removeLayer(pin.marker);
+            }
+        });
+        console.log('All pins hidden');
+    }
+    
+    showPins() {
+        this.pins.forEach(pin => {
+            if (pin.marker) {
+                pin.marker.addTo(this.map);
+            }
+        });
+        console.log('All pins shown');
     }
 }

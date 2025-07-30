@@ -13,6 +13,7 @@ export class OverlayManager {
         this.applyButton = options.applyButton;
         this.resetButton = options.resetButton;
         this.onOverlayApplied = options.onOverlayApplied;
+        this.pinManager = options.pinManager;
         
         this.imageData = null;
         this.imagePoints = []; // 画像上の選択点
@@ -23,6 +24,8 @@ export class OverlayManager {
         this.imageWindow = null;
         this.isRepositioning = false; // 位置調整中かどうかのフラグ
         this.savedOverlayData = null; // オーバーレイのデータを保存
+        this.preApplyState = null; // 4点選択完了後の状態を保存
+        this.pendingSelectedPoints = null; // 画像読み込み後に設定する選択点
         
         this.setupEventHandlers();
         this.createControlPanel();
@@ -91,11 +94,8 @@ export class OverlayManager {
         });
         
         document.getElementById('repositionBtn').addEventListener('click', () => {
-            if (this.isRepositioning) {
-                this.cancelRepositioning();
-            } else {
-                this.startRepositioning();
-            }
+            console.log('🔄 位置を調整ボタンがクリックされました');
+            this.restorePreApplyState();
         });
     }
     
@@ -118,6 +118,102 @@ export class OverlayManager {
         };
         
         this.map.on('click', this.mapClickHandler);
+    }
+    
+    // 位置合わせ実行前の状態を保存
+    savePreApplyState() {
+        this.preApplyState = {
+            imagePoints: [...this.imagePoints],
+            mapPoints: [...this.mapPoints],
+            mapMarkers: [...this.mapMarkers],
+            previewRectangle: this.previewRectangle,
+            applyButtonDisabled: this.applyButton.disabled,
+            applyButtonVisible: this.applyButton.style.display !== 'none',
+            resetButtonVisible: this.resetButton.style.display !== 'none',
+            overlaySection: {
+                display: this.overlaySection.style.display,
+                visible: this.overlaySection.style.display !== 'none'
+            },
+            imageWindow: this.imageWindow,
+            imageData: this.imageData
+        };
+        console.log('💾 位置合わせ実行前の状態を保存しました:', this.preApplyState);
+    }
+    
+    // 位置合わせ実行前の状態に復元
+    restorePreApplyState() {
+        if (!this.preApplyState) {
+            console.warn('⚠️ 復元する状態が保存されていません');
+            return;
+        }
+        
+        console.log('🔄 位置合わせ実行前の状態に復元中...');
+        
+        // 現在のオーバーレイを削除
+        if (this.overlayLayer) {
+            this.map.removeLayer(this.overlayLayer);
+            this.overlayLayer = null;
+        }
+        
+        // コントロールパネルを非表示
+        const imageControls = document.getElementById('imageControls');
+        if (imageControls) {
+            imageControls.style.display = 'none';
+        }
+        
+        // マップクリックイベントを再設定
+        if (this.mapClickHandler) {
+            this.map.on('click', this.mapClickHandler);
+        }
+        
+        // 保存された状態を復元
+        this.imagePoints = [...this.preApplyState.imagePoints];
+        this.mapPoints = [...this.preApplyState.mapPoints];
+        this.mapMarkers = [...this.preApplyState.mapMarkers];
+        this.previewRectangle = this.preApplyState.previewRectangle;
+        
+        // マーカーを地図に再追加
+        this.mapMarkers.forEach(marker => {
+            if (!this.map.hasLayer(marker)) {
+                marker.addTo(this.map);
+            }
+        });
+        
+        // プレビュー四角形を再表示
+        if (this.previewRectangle && !this.map.hasLayer(this.previewRectangle)) {
+            this.previewRectangle.addTo(this.map);
+        }
+        
+        // ボタンの状態を復元
+        this.applyButton.disabled = this.preApplyState.applyButtonDisabled;
+        this.applyButton.style.display = this.preApplyState.applyButtonVisible ? 'block' : 'none';
+        this.resetButton.style.display = this.preApplyState.resetButtonVisible ? 'block' : 'none';
+        
+        // オーバーレイセクションを表示
+        this.overlaySection.style.display = 'block';
+        
+        // マップのカーソルを十字に戻す
+        this.setMapCursor('crosshair');
+        
+        // UI表示を更新
+        this.updatePointsDisplay();
+        this.updateInstructionText();
+        
+        // 画像ウィンドウを再表示して選択点を復元
+        if (this.preApplyState.imageData) {
+            console.log('🖼️ 画像ウィンドウを再表示...');
+            
+            // 画像ウィンドウを表示（復元モードで）
+            this.showImageWindow(true);
+        }
+        
+        // ピンマネージャーを一時的に無効化（オーバーレイモードに戻すため）
+        if (window.app && window.app.pinManager) {
+            window.app.pinManager.disable();
+            console.log('📍 ピンマネージャーを無効化しました');
+        }
+        
+        console.log('✅ 位置合わせ実行前の状態に復元完了');
     }
     
     handleResetClick() {
@@ -218,8 +314,8 @@ export class OverlayManager {
         }
     }
     
-    showImageWindow() {
-        console.log('showImageWindow called with imageData:', this.imageData);
+    showImageWindow(restorePoints = false) {
+        console.log('showImageWindow called with imageData:', this.imageData, 'restorePoints:', restorePoints);
         
         // 既存のウィンドウがあれば閉じる
         if (this.imageWindow) {
@@ -241,6 +337,29 @@ export class OverlayManager {
         
         // 元のキャンバスは非表示
         this.imageCanvas.style.display = 'none';
+        
+        // 復元モードの場合、少し待ってから選択点を設定
+        if (restorePoints && this.imagePoints.length > 0) {
+            console.log('📍 復元モード: 選択点を設定します');
+            // 画像の初期描画が完了するまで待つ（初回は少し長めに待つ）
+            const delay = 500; // 初回でも確実に動作するように500msに設定
+            setTimeout(() => {
+                if (this.imageWindow) {
+                    this.imageWindow.setSelectedPoints(this.imagePoints);
+                    console.log('📍 選択点を復元しました');
+                }
+                
+                // 選択点設定後にピンを非表示にする
+                if (this.pinManager) {
+                    this.pinManager.hidePins();
+                }
+            }, delay);
+        } else {
+            // 通常モードでは即座にピンを非表示
+            if (this.pinManager) {
+                this.pinManager.hidePins();
+            }
+        }
     }
     
     handleImagePointSelection(data) {
@@ -398,7 +517,7 @@ export class OverlayManager {
             const numberMarker = L.marker(latlng, {
                 icon: L.divIcon({
                     className: 'map-point-number',
-                    html: `<div style="background: transparent; color: white; font-size: 14px; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${this.mapPoints.length}</div>`,
+                    html: `<div style="background: transparent; color: white; font-size: 14px; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); line-height: 16px;">${this.mapPoints.length}</div>`,
                     iconSize: [16, 16],
                     iconAnchor: [8, 8]
                 }),
@@ -811,6 +930,9 @@ export class OverlayManager {
             return;
         }
         
+        // 位置合わせ実行前の状態を保存
+        this.savePreApplyState();
+        
         // コントロールパネルを表示
         document.getElementById('imageControls').style.display = 'block';
         
@@ -868,6 +990,11 @@ export class OverlayManager {
         // 画像ウィンドウは閉じる
         if (this.imageWindow) {
             this.imageWindow.close();
+        }
+        
+        // ピンを再表示
+        if (this.pinManager) {
+            this.pinManager.showPins();
         }
         
         // マップのカーソルを元に戻す
@@ -1186,6 +1313,11 @@ export class OverlayManager {
             imageControls.style.display = 'none';
         }
         
+        // ピンを再表示
+        if (this.pinManager) {
+            this.pinManager.showPins();
+        }
+        
         this.updatePointsDisplay();
         this.applyButton.disabled = true;
         this.applyButton.textContent = '位置合わせを実行';
@@ -1232,6 +1364,11 @@ export class OverlayManager {
         if (this.mapClickHandler) {
             this.map.off('click', this.mapClickHandler);
             this.map.on('click', this.mapClickHandler);
+        }
+        
+        // ピンを再表示
+        if (this.pinManager) {
+            this.pinManager.showPins();
         }
         
         this.updatePointsDisplay();

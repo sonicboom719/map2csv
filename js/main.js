@@ -125,6 +125,11 @@ class App {
             this.pinManager.setInputHistoryManager(this.inputHistoryManager);
         }
         
+        // オーバーレイマネージャーにピンマネージャーの参照を設定
+        if (this.overlayManager && this.pinManager) {
+            this.overlayManager.pinManager = this.pinManager;
+        }
+        
         try {
             console.log('🔍 住所検索を設定中...');
             // 住所検索の設定
