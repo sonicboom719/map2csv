@@ -61,6 +61,21 @@
 		<!-- 地図エリア -->
 		<div class="map-container">
 			<div id="map"></div>
+			<!-- 地図タイル選択パネル -->
+			<div id="mapTileSelector" class="map-tile-selector">
+				<label class="tile-option">
+					<input type="radio" name="mapTile" value="osm" checked>
+					<span>OpenStreetMap</span>
+				</label>
+				<label class="tile-option">
+					<input type="radio" name="mapTile" value="gsi-standard">
+					<span>GSI標準地図</span>
+				</label>
+				<label class="tile-option">
+					<input type="radio" name="mapTile" value="gsi-pale">
+					<span>GSI淡色地図</span>
+				</label>
+			</div>
 			<!-- 画像選択用キャンバス -->
 			<canvas id="imageCanvas" style="display: none;"></canvas>
 		</div>
@@ -94,7 +109,7 @@
 			<label>
 				ピン番号（表示用）:
 				<select id="pinDisplayNumber">
-					<option value="">選択してください</option>
+					<option value="">選択してください(省略可)</option>
 				</select>
 			</label>
 			<label>

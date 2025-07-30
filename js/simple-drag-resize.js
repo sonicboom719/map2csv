@@ -313,13 +313,13 @@ export class SimpleDragResizeWindow {
                 ctx.lineWidth = 3;
                 
                 ctx.beginPath();
-                ctx.arc(point.canvasX, point.canvasY, 8, 0, 2 * Math.PI);
+                ctx.arc(point.canvasX, point.canvasY, 12, 0, 2 * Math.PI);
                 ctx.fill();
                 ctx.stroke();
                 
                 // 番号を表示
                 ctx.fillStyle = 'white';
-                ctx.font = 'bold 12px Arial';
+                ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText((index + 1).toString(), point.canvasX, point.canvasY + 4);
             });
@@ -539,13 +539,13 @@ export class SimpleDragResizeWindow {
                 ctx.lineWidth = 3;
                 
                 ctx.beginPath();
-                ctx.arc(newCanvasX, newCanvasY, 8, 0, 2 * Math.PI);
+                ctx.arc(newCanvasX, newCanvasY, 12, 0, 2 * Math.PI);
                 ctx.fill();
                 ctx.stroke();
                 
                 // 番号を表示
                 ctx.fillStyle = 'white';
-                ctx.font = 'bold 12px Arial';
+                ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText((index + 1).toString(), newCanvasX, newCanvasY + 4);
             });

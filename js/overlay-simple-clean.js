@@ -18,6 +18,8 @@ export class OverlayManager {
         this.overlayLayer = null;
         this.previewRectangle = null;
         this.imageWindow = null;
+        this.isRepositioning = false; // 位置調整中かどうかのフラグ
+        this.savedOverlayData = null; // オーバーレイのデータを保存
         
         this.setupEventHandlers();
         this.createControlPanel();
@@ -85,7 +87,11 @@ export class OverlayManager {
         });
         
         document.getElementById('repositionBtn').addEventListener('click', () => {
-            this.startRepositioning();
+            if (this.isRepositioning) {
+                this.cancelRepositioning();
+            } else {
+                this.startRepositioning();
+            }
         });
     }
     
@@ -363,7 +369,7 @@ export class OverlayManager {
             
             // ドラッグ可能なマーカーを作成
             const marker = L.circleMarker(latlng, {
-                radius: 8,
+                radius: 12,
                 fillColor: colors[index],
                 color: 'white',
                 weight: 3,
@@ -379,7 +385,7 @@ export class OverlayManager {
             const numberMarker = L.marker(latlng, {
                 icon: L.divIcon({
                     className: 'map-point-number',
-                    html: `<div style="background: transparent; color: white; font-size: 12px; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${this.mapPoints.length}</div>`,
+                    html: `<div style="background: transparent; color: white; font-size: 14px; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${this.mapPoints.length}</div>`,
                     iconSize: [16, 16],
                     iconAnchor: [8, 8]
                 }),
@@ -832,6 +838,20 @@ export class OverlayManager {
     }
     
     finishApplyOverlay() {
+        // オーバーレイデータを保存（位置調整キャンセル時に使用）
+        if (this.overlayLayer) {
+            const bounds = this.overlayLayer.getBounds();
+            this.savedOverlayData = {
+                imageUrl: this.imageData.url,
+                bounds: [
+                    bounds.getSouthWest().lat,
+                    bounds.getSouthWest().lng,
+                    bounds.getNorthEast().lat,
+                    bounds.getNorthEast().lng
+                ]
+            };
+        }
+        
         // 画像ウィンドウは閉じる
         if (this.imageWindow) {
             this.imageWindow.close();
@@ -940,6 +960,16 @@ export class OverlayManager {
     }
     
     startRepositioning() {
+        // 位置調整モードを開始
+        this.isRepositioning = true;
+        
+        // ボタンのテキストを変更
+        const repositionBtn = document.getElementById('repositionBtn');
+        if (repositionBtn) {
+            repositionBtn.textContent = '位置の調整をキャンセル';
+            repositionBtn.style.background = '#c0392b'; // より暗い赤色に変更
+        }
+        
         // 位置調整モード
         if (this.overlayLayer) {
             this.map.removeLayer(this.overlayLayer);
@@ -962,8 +992,8 @@ export class OverlayManager {
             const marker = L.marker(latlng, {
                 icon: L.divIcon({
                     className: 'simple-marker',
-                    html: `<div style="background-color: ${colors[index]}; color: white; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">${index + 1}</div>`,
-                    iconSize: [30, 30]
+                    html: `<div style="background-color: ${colors[index]}; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">${index + 1}</div>`,
+                    iconSize: [36, 36]
                 }),
                 draggable: true
             }).addTo(this.map);
@@ -1055,6 +1085,65 @@ export class OverlayManager {
         if (cityInput) cityInput.value = '';
         
         console.log('deleteImage completed - reset to initial state');
+    }
+    
+    cancelRepositioning() {
+        // 位置調整モードをキャンセル
+        this.isRepositioning = false;
+        
+        // ボタンのテキストを元に戻す
+        const repositionBtn = document.getElementById('repositionBtn');
+        if (repositionBtn) {
+            repositionBtn.textContent = '位置を調整';
+            repositionBtn.style.background = '#e67e22'; // 元のオレンジ色に戻す
+        }
+        
+        // マーカーを削除
+        this.mapMarkers.forEach(marker => marker.remove());
+        this.mapMarkers = [];
+        
+        // プレビュー矩形を削除
+        if (this.previewRectangle) {
+            this.map.removeLayer(this.previewRectangle);
+            this.previewRectangle = null;
+        }
+        
+        // オーバーレイレイヤーを再度追加
+        if (this.savedOverlayData) {
+            const bounds = L.latLngBounds(
+                [this.savedOverlayData.bounds[0], this.savedOverlayData.bounds[1]],
+                [this.savedOverlayData.bounds[2], this.savedOverlayData.bounds[3]]
+            );
+            
+            this.overlayLayer = L.imageOverlay(this.savedOverlayData.imageUrl, bounds, {
+                opacity: parseFloat(document.getElementById('imageOpacity').value) || 0.7
+            }).addTo(this.map);
+        }
+        
+        // ピンマネージャーを再度有効化
+        if (window.app && window.app.pinManager) {
+            window.app.pinManager.enable();
+        }
+        
+        // インフォメッセージを表示
+        const info = document.getElementById('overlayInfo');
+        info.innerHTML = `
+            <div style="font-size: 16px; font-weight: bold; color: #3498db;">
+                📍 位置調整をキャンセルしました
+            </div>
+            <div style="font-size: 14px; margin-top: 10px;">
+                画像の配置を維持し、ピン配置モードに戻りました
+            </div>
+        `;
+        info.style.backgroundColor = '#ecf0f1';
+        info.style.color = '#2c3e50';
+        
+        // 地図のクリックイベントリスナーを削除
+        this.map.off('click', this.mapClickHandler);
+        this.mapClickHandler = null;
+        
+        // カーソルを元に戻す
+        this.setMapCursor('');
     }
     
     resetPointsOnly() {

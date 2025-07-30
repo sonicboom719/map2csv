@@ -3,6 +3,7 @@ import { ImageUploader } from './uploader.js';
 import { OverlayManager } from './overlay-simple-clean.js';
 import { PinManager } from './pins.js';
 import { CsvExporter } from './export.js';
+import { InputHistoryManager } from './input-history.js';
 
 class App {
     constructor() {
@@ -11,6 +12,7 @@ class App {
         this.overlayManager = null;
         this.pinManager = null;
         this.csvExporter = null;
+        this.inputHistoryManager = null;
         
         this.initialize();
     }
@@ -58,6 +60,10 @@ class App {
             exportButton: document.getElementById('exportCsv'),
             pinManager: this.pinManager
         });
+        
+        // 入力履歴マネージャーの初期化
+        this.inputHistoryManager = new InputHistoryManager();
+        this.inputHistoryManager.setupAllFields();
         
         // 住所検索の設定
         this.setupAddressSearch();
