@@ -1,22 +1,42 @@
 import { MapManager } from './map.js';
 import { ImageUploader } from './uploader.js';
-import { OverlayManager } from './overlay-simple-clean.js';
+import { OverlayManager } from './overlay-manager.js';
 import { PinManager } from './pins.js';
 import { CsvExporter } from './export.js';
 import { InputHistoryManager } from './input-history.js';
 import { CONFIG, ERROR_MESSAGES } from './config.js';
 import { ErrorHandler } from './utils/error-handler.js';
 
+/**
+ * 地図→CSV化支援ツールのメインアプリケーションクラス
+ * 
+ * 各マネージャークラスを統合し、アプリケーション全体の初期化と
+ * コンポーネント間の連携を管理します。
+ * 
+ * @class App
+ */
 class App {
+    /**
+     * アプリケーションを初期化します
+     * 
+     * @param {Object} options - 初期化オプション
+     * @param {boolean} [options.skipInputHistory=false] - 入力履歴機能をスキップするか
+     */
     constructor(options = {}) {
+        /** @type {MapManager|null} 地図管理インスタンス */
         this.mapManager = null;
+        /** @type {ImageUploader|null} 画像アップロード管理インスタンス */
         this.imageUploader = null;
+        /** @type {OverlayManager|null} オーバーレイ管理インスタンス */
         this.overlayManager = null;
+        /** @type {PinManager|null} ピン管理インスタンス */
         this.pinManager = null;
+        /** @type {CsvExporter|null} CSV出力管理インスタンス */
         this.csvExporter = null;
+        /** @type {InputHistoryManager|null} 入力履歴管理インスタンス */
         this.inputHistoryManager = null;
         
-        // テスト用オプション
+        /** @type {Object} 初期化オプション */
         this.options = {
             skipInputHistory: false,
             ...options
@@ -25,20 +45,19 @@ class App {
         this.initialize();
     }
     
+    /**
+     * 全てのマネージャーを初期化し、コンポーネント間の連携を設定します
+     * @private
+     */
     initialize() {
         try {
-            console.log('🗺️ 地図マネージャーを初期化中...');
-            // 地図の初期化
             this.mapManager = new MapManager('map');
-            console.log('✅ 地図マネージャー初期化完了');
         } catch (error) {
-            console.error('❌ 地図マネージャー初期化失敗:', error);
+            console.error('地図マネージャー初期化失敗:', error);
             throw error;
         }
         
         try {
-            console.log('📤 画像アップローダーを初期化中...');
-            // 画像アップローダーの初期化
             this.imageUploader = new ImageUploader({
                 uploadArea: document.getElementById('uploadArea'),
                 fileInput: document.getElementById('fileInput'),
@@ -46,15 +65,12 @@ class App {
                 uploadedImageDiv: document.getElementById('uploadedImage'),
                 onImageLoaded: (imageData) => this.handleImageLoaded(imageData)
             });
-            console.log('✅ 画像アップローダー初期化完了');
         } catch (error) {
-            console.error('❌ 画像アップローダー初期化失敗:', error);
+            console.error('画像アップローダー初期化失敗:', error);
             throw error;
         }
         
         try {
-            console.log('🔄 オーバーレイマネージャーを初期化中...');
-            // オーバーレイマネージャーの初期化
             this.overlayManager = new OverlayManager({
                 map: this.mapManager.map,
                 imageCanvas: document.getElementById('imageCanvas'),
@@ -65,15 +81,12 @@ class App {
                 resetButton: document.getElementById('resetPoints'),
                 onOverlayApplied: () => this.handleOverlayApplied()
             });
-            console.log('✅ オーバーレイマネージャー初期化完了');
         } catch (error) {
-            console.error('❌ オーバーレイマネージャー初期化失敗:', error);
+            console.error('オーバーレイマネージャー初期化失敗:', error);
             throw error;
         }
         
         try {
-            console.log('📍 ピンマネージャーを初期化中...');
-            // ピンマネージャーの初期化
             this.pinManager = new PinManager({
                 map: this.mapManager.map,
                 pinSection: document.getElementById('pinSection'),
@@ -84,40 +97,31 @@ class App {
                 pinMemoInput: document.getElementById('pinMemo'),
                 saveButton: document.getElementById('savePinInfo'),
                 cancelButton: document.getElementById('cancelPinInfo'),
-                inputHistoryManager: null  // 後で設定
+                inputHistoryManager: null
             });
-            console.log('✅ ピンマネージャー初期化完了');
         } catch (error) {
-            console.error('❌ ピンマネージャー初期化失敗:', error);
+            console.error('ピンマネージャー初期化失敗:', error);
             throw error;
         }
         
         try {
-            console.log('📊 CSVエクスポーターを初期化中...');
-            // CSVエクスポーターの初期化
             this.csvExporter = new CsvExporter({
                 exportButton: document.getElementById('exportCsv'),
                 pinManager: this.pinManager
             });
-            console.log('✅ CSVエクスポーター初期化完了');
         } catch (error) {
-            console.error('❌ CSVエクスポーター初期化失敗:', error);
+            console.error('CSVエクスポーター初期化失敗:', error);
             throw error;
         }
         
-        // 入力履歴マネージャーの初期化
         if (!this.options.skipInputHistory) {
             try {
-                console.log('📝 入力履歴マネージャーを初期化中...');
                 this.inputHistoryManager = new InputHistoryManager();
                 this.inputHistoryManager.setupAllFields();
-                console.log('✅ 入力履歴マネージャー初期化完了');
             } catch (error) {
-                console.warn('⚠️ 入力履歴マネージャー初期化失敗:', error);
+                console.warn('入力履歴マネージャー初期化失敗:', error);
                 this.inputHistoryManager = null;
             }
-        } else {
-            console.log('⏭️ 入力履歴マネージャーの初期化をスキップ');
         }
         
         // ピンマネージャーに入力履歴マネージャーの参照を設定
@@ -131,26 +135,18 @@ class App {
         }
         
         try {
-            console.log('🔍 住所検索を設定中...');
-            // 住所検索の設定
             this.setupAddressSearch();
-            console.log('✅ 住所検索設定完了');
         } catch (error) {
-            console.error('❌ 住所検索設定失敗:', error);
+            console.error('住所検索設定失敗:', error);
             throw error;
         }
         
         try {
-            console.log('📋 ペースト機能を設定中...');
-            // ペースト機能の設定
             this.setupPasteHandler();
-            console.log('✅ ペースト機能設定完了');
         } catch (error) {
-            console.error('❌ ペースト機能設定失敗:', error);
+            console.error('ペースト機能設定失敗:', error);
             throw error;
         }
-        
-        console.log('🎉 全ての初期化が完了しました');
     }
     
     setupAddressSearch() {
@@ -226,6 +222,15 @@ class App {
         });
     }
     
+    /**
+     * 画像が読み込まれた際の処理
+     * オーバーレイセクションを表示し、画像データを設定します
+     * 
+     * @param {Object} imageData - 読み込まれた画像データ
+     * @param {string} imageData.url - 画像のData URL
+     * @param {number} imageData.width - 画像の幅
+     * @param {number} imageData.height - 画像の高さ
+     */
     handleImageLoaded(imageData) {
         console.log('handleImageLoaded called with:', imageData);
         // 画像が読み込まれたらオーバーレイセクションを表示
@@ -235,6 +240,10 @@ class App {
     
     // handleImageRemovedメソッドは削除（×ボタンから直接OverlayManager.deleteImage()が呼ばれる）
     
+    /**
+     * オーバーレイが適用された際の処理
+     * ピンマネージャーを有効化し、右サイドバーを表示します
+     */
     handleOverlayApplied() {
         // オーバーレイが適用されたら右サイドバーとピンセクションを表示
         document.getElementById('rightSidebar').style.display = 'block';

@@ -566,10 +566,24 @@ export class SimpleDragResizeWindow {
         if (!this.canvas) return;
         
         console.log('Setting selected points:', points);
-        this.selectedPoints = points.map(p => ({...p}));
         
-        // 選択点を含めて再描画
-        this.redrawWithPoints();
+        // 選択点をコピーし、canvasX, canvasYを計算
+        this.selectedPoints = points.map(p => {
+            const canvasX = (p.x / this.imageData.width) * this.canvas.width;
+            const canvasY = (p.y / this.imageData.height) * this.canvas.height;
+            return {
+                ...p,
+                canvasX: canvasX,
+                canvasY: canvasY
+            };
+        });
+        
+        // 少し待ってから再描画（画像の初期描画完了を待つ）
+        setTimeout(() => {
+            if (this.canvas && this.selectedPoints.length > 0) {
+                this.redrawWithPoints();
+            }
+        }, 100);
     }
     
     close() {

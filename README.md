@@ -1,6 +1,6 @@
 # 地図→CSV化支援ツール
 
-地図画像やPDFを地図上に重ね合わせて、掲示場の位置にピンを配置し、データをCSV形式で出力するWebツールです。
+地図画像やPDFを地図上に重ね合わせて、ポスター掲示場の位置にピンを配置し、データをCSV形式で出力するWebツールです。
 
 ## 📖 使い方ガイド
 
@@ -116,19 +116,47 @@ prefecture,city,number,address,name,lat,long,note
 
 ```
 map2csv/
-├── index.html                    # メインページ
-├── css/style.css                # スタイルシート
+├── index.html                   # メインページ
+├── css/style.css               # スタイルシート
 ├── js/
-│   ├── main.js                  # アプリケーション制御
-│   ├── map.js                   # 地図管理
-│   ├── uploader.js              # ファイルアップロード
-│   ├── overlay-simple-clean.js  # 画像オーバーレイ
-│   ├── simple-drag-resize.js    # ウィンドウ管理
-│   ├── pins.js                  # ピン管理
-│   └── export.js                # CSV出力
-└── CLAUDE.md                    # 技術仕様書
+│   ├── main.js                 # アプリケーション制御
+│   ├── map.js                  # 地図管理
+│   ├── uploader.js             # ファイルアップロード
+│   ├── overlay-manager.js      # 画像オーバーレイ管理
+│   ├── simple-drag-resize.js   # ウィンドウ管理
+│   ├── pins.js                 # ピン管理
+│   ├── export.js               # CSV出力
+│   ├── input-history.js        # 入力履歴管理
+│   ├── config.js               # アプリケーション設定
+│   └── utils/
+│       ├── coordinate-transformer.js  # 座標変換ユーティリティ
+│       └── error-handler.js           # エラーハンドリング
+├── tests/
+│   ├── integration-test.html   # 統合テスト
+│   ├── unit-tests.html         # ユニットテスト
+│   └── test-framework.js       # テストフレームワーク
+└── CLAUDE.md                   # 技術仕様書
 ```
+
+## 🧪 テスト
+
+### テストの実行
+
+1. **統合テスト**
+   - `tests/integration-test.html` をブラウザで開く
+   - アプリケーション全体の初期化と連携をテスト
+
+2. **ユニットテスト**
+   - `tests/unit-tests.html` をブラウザで開く
+   - 個別コンポーネントの機能をテスト
+
+### テスト項目
+- DOM要素の存在確認
+- 各マネージャークラスの初期化
+- 設定ファイルの整合性
+- ユーティリティ関数の動作
+- モジュールの読み込み確認
 
 ---
 
-© TeamMirai - 掲示場管理支援ツール
+© TeamMirai - ポスター掲示場管理支援ツール

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユニットテスト - 地図→CSV化支援ツール</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .test-header {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .test-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        
+        .test-content {
+            padding: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .test-section-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .test-section-content {
+            padding: 20px;
+        }
+        
+        .test-controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 5px;
+            transition: background 0.2s;
+        }
+        
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .test-result {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .test-result.passed { background: #d4edda; color: #155724; }
+        .test-result.failed { background: #f8d7da; color: #721c24; }
+        .test-result.running { background: #fff3cd; color: #856404; }
+        
+        .test-summary {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .test-details {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            background: #f8f9fa;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>ユニットテストスイート</h1>
+            <p>個別コンポーネントの機能をテストします</p>
+        </div>
+        
+        <div class="test-content">
+            <div class="test-controls">
+                <button id="runAllTests">全テスト実行</button>
+                <button id="runConfigTests">CONFIG テスト</button>
+                <button id="runUtilsTests">Utils テスト</button>
+                <button id="runManagerTests">Manager テスト</button>
+            </div>
+            
+            <div class="test-section">
+                <div class="test-section-header">設定とユーティリティ</div>
+                <div class="test-section-content">
+                    <div id="configTestResults"></div>
+                    <div id="utilsTestResults"></div>
+                </div>
+            </div>
+            
+            <div class="test-section">
+                <div class="test-section-header">マネージャークラス</div>
+                <div class="test-section-content">
+                    <div id="managerTestResults"></div>
+                </div>
+            </div>
+            
+            <div class="test-summary">
+                <div id="testSummary">テストを実行してください</div>
+            </div>
+            
+            <div class="test-section">
+                <div class="test-section-header">テストログ</div>
+                <div class="test-section-content">
+                    <div id="testLog" class="test-details"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { SimpleTestRunner } from './simple-test.js';
+        import { CONFIG, ERROR_MESSAGES } from '../js/config.js';
+        import { CoordinateTransformer } from '../js/utils/coordinate-transformer.js';
+        import { ErrorHandler } from '../js/utils/error-handler.js';
+        
+        class UnitTestSuite extends SimpleTestRunner {
+            constructor() {
+                super('ユニットテスト');
+                this.setupCustomUI();
+            }
+            
+            setupCustomUI() {
+                this.configResults = document.getElementById('configTestResults');
+                this.utilsResults = document.getElementById('utilsTestResults');
+                this.managerResults = document.getElementById('managerTestResults');
+                this.summaryElement = document.getElementById('testSummary');
+                this.logContainer = document.getElementById('testLog');
+            }
+            
+            async runAllTests() {
+                this.clear();
+                this.configResults.innerHTML = '';
+                this.utilsResults.innerHTML = '';
+                this.managerResults.innerHTML = '';
+                
+                this.log('=== 全テスト開始 ===');
+                
+                await this.runConfigTests();
+                await this.runUtilsTests();
+                await this.runManagerTests();
+                
+                this.displaySummary('testSummary');
+                this.log(`\n=== テスト完了 ===`);
+                this.log(`結果: ${this.results.passed}/${this.results.total} 成功`);
+            }
+            
+            async runConfigTests() {
+                this.log('=== CONFIG テスト開始 ===');
+                
+                await this.test('CONFIG.UIが存在する', () => {
+                    this.assert(CONFIG.UI !== undefined, 'CONFIG.UIが定義されている');
+                    this.assert(CONFIG.UI.MAX_IMAGE_DISPLAY_SIZE > 0, '画像表示サイズ制限が正の値');
+                });
+                
+                await this.test('CONFIG.MAPが存在する', () => {
+                    this.assert(CONFIG.MAP !== undefined, 'CONFIG.MAPが定義されている');
+                    this.assert(Array.isArray(CONFIG.MAP.DEFAULT_CENTER), '初期中心座標が配列');
+                    this.assertEqual(CONFIG.MAP.DEFAULT_CENTER.length, 2, '座標が2要素');
+                });
+                
+                await this.test('CONFIG.PINSが存在する', () => {
+                    this.assert(CONFIG.PINS !== undefined, 'CONFIG.PINSが定義されている');
+                    this.assert(CONFIG.PINS.DEFAULT_COLORS !== undefined, 'デフォルト色が定義されている');
+                });
+                
+                await this.test('ERROR_MESSAGESが存在する', () => {
+                    this.assert(ERROR_MESSAGES !== undefined, 'ERROR_MESSAGESが定義されている');
+                    this.assert(typeof ERROR_MESSAGES.NETWORK_ERROR === 'string', 'ネットワークエラーメッセージが文字列');
+                });
+                
+                this.displayResults('configTestResults', 'CONFIG');
+            }
+            
+            async runUtilsTests() {
+                this.log('=== Utils テスト開始 ===');
+                
+                await this.test('CoordinateTransformer.transformPoint', () => {
+                    const imagePoint1 = { x: 0, y: 0 };
+                    const mapPoint1 = { lat: 35.0, lng: 139.0 };
+                    const transform = {
+                        scaleX: 0.001,
+                        scaleY: 0.001,
+                        imagePoint1: imagePoint1,
+                        mapPoint1: mapPoint1
+                    };
+                    
+                    const result = CoordinateTransformer.transformPoint(10, 20, transform);
+                    this.assert(Array.isArray(result), '結果が配列');
+                    this.assertEqual(result.length, 2, '結果が2要素');
+                    this.assert(typeof result[0] === 'number', '緯度が数値');
+                    this.assert(typeof result[1] === 'number', '経度が数値');
+                });
+                
+                await this.test('CoordinateTransformer.calculateTransform', () => {
+                    const imagePoint1 = { x: 0, y: 0 };
+                    const imagePoint2 = { x: 100, y: 0 };
+                    const mapPoint1 = { lat: 35.0, lng: 139.0 };
+                    const mapPoint2 = { lat: 35.0, lng: 139.1 };
+                    
+                    const transform = CoordinateTransformer.calculateTransform(
+                        imagePoint1, imagePoint2, mapPoint1, mapPoint2
+                    );
+                    
+                    this.assert(transform !== null, '変換オブジェクトが作成される');
+                    this.assert(typeof transform.scaleX === 'number', 'scaleXが数値');
+                    this.assert(typeof transform.scaleY === 'number', 'scaleYが数値');
+                    this.assert(transform.imagePoint1 !== undefined, 'imagePoint1が設定される');
+                    this.assert(transform.mapPoint1 !== undefined, 'mapPoint1が設定される');
+                });
+                
+                await this.test('CoordinateTransformer.calculateRotationAngle', () => {
+                    const imageVector = { x: 1, y: 0 };  // 右方向
+                    const mapPixelVector = { x: 0, y: 1 };  // 下方向
+                    
+                    const angle = CoordinateTransformer.calculateRotationAngle(imageVector, mapPixelVector);
+                    this.assert(typeof angle === 'number', '角度が数値');
+                    this.assert(!isNaN(angle), '角度が有効な数値');
+                });
+                
+                await this.test('ErrorHandler.requireElement', () => {
+                    // テスト用の要素を作成
+                    const testElement = document.createElement('div');
+                    testElement.id = 'testElement';
+                    document.body.appendChild(testElement);
+                    
+                    const element = ErrorHandler.requireElement('testElement');
+                    this.assert(element !== null, '存在する要素を取得できる');
+                    this.assertEqual(element.id, 'testElement', '正しい要素を取得');
+                    
+                    // クリーンアップ
+                    document.body.removeChild(testElement);
+                });
+                
+                await this.test('ErrorHandler.requireElement - 存在しない要素', async () => {
+                    await this.assertThrows(
+                        () => ErrorHandler.requireElement('nonExistentElement'),
+                        '存在しない要素でエラーをスロー'
+                    );
+                });
+                
+                this.displayResults('utilsTestResults', 'Utils');
+            }
+            
+            async runManagerTests() {
+                this.log('=== Manager テスト開始 ===');
+                
+                // MapManagerのテスト（簡易版）
+                await this.test('MapManager - モジュール読み込み', async () => {
+                    const { MapManager } = await import('../js/map.js');
+                    this.assert(MapManager !== undefined, 'MapManagerクラスが存在する');
+                    this.assert(typeof MapManager === 'function', 'MapManagerがコンストラクタ関数');
+                });
+                
+                // ImageUploaderのテスト
+                await this.test('ImageUploader - モジュール読み込み', async () => {
+                    const { ImageUploader } = await import('../js/uploader.js');
+                    this.assert(ImageUploader !== undefined, 'ImageUploaderクラスが存在する');
+                    this.assert(typeof ImageUploader === 'function', 'ImageUploaderがコンストラクタ関数');
+                });
+                
+                // PinManagerのテスト
+                await this.test('PinManager - モジュール読み込み', async () => {
+                    const { PinManager } = await import('../js/pins.js');
+                    this.assert(PinManager !== undefined, 'PinManagerクラスが存在する');
+                    this.assert(typeof PinManager === 'function', 'PinManagerがコンストラクタ関数');
+                });
+                
+                // CsvExporterのテスト
+                await this.test('CsvExporter - モジュール読み込み', async () => {
+                    const { CsvExporter } = await import('../js/export.js');
+                    this.assert(CsvExporter !== undefined, 'CsvExporterクラスが存在する');
+                    this.assert(typeof CsvExporter === 'function', 'CsvExporterがコンストラクタ関数');
+                });
+                
+                // OverlayManagerのテスト
+                await this.test('OverlayManager - モジュール読み込み', async () => {
+                    const { OverlayManager } = await import('../js/overlay-manager.js');
+                    this.assert(OverlayManager !== undefined, 'OverlayManagerクラスが存在する');
+                    this.assert(typeof OverlayManager === 'function', 'OverlayManagerがコンストラクタ関数');
+                });
+                
+                this.displayResults('managerTestResults', 'Manager');
+            }
+            
+        }
+        
+        const unitTests = new UnitTestSuite();
+        
+        // デバッグ用：DOM要素の存在確認
+        console.log('runAllTests button:', document.getElementById('runAllTests'));
+        console.log('UnitTestSuite instance:', unitTests);
+        
+        // イベントリスナー設定
+        document.getElementById('runAllTests').addEventListener('click', () => {
+            console.log('runAllTests clicked');
+            unitTests.runAllTests();
+        });
+        
+        document.getElementById('runConfigTests').addEventListener('click', async () => {
+            unitTests.clear();
+            unitTests.configResults.innerHTML = '';
+            await unitTests.runConfigTests();
+            unitTests.displaySummary('testSummary');
+        });
+        
+        document.getElementById('runUtilsTests').addEventListener('click', async () => {
+            unitTests.clear();
+            unitTests.utilsResults.innerHTML = '';
+            await unitTests.runUtilsTests();
+            unitTests.displaySummary('testSummary');
+        });
+        
+        document.getElementById('runManagerTests').addEventListener('click', async () => {
+            unitTests.clear();
+            unitTests.managerResults.innerHTML = '';
+            await unitTests.runManagerTests();
+            unitTests.displaySummary('testSummary');
+        });
+    </script>
+</body>
+</html>

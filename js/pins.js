@@ -185,7 +185,6 @@ export class PinManager {
     // 入力履歴マネージャーを設定（main.jsから呼び出される）
     setInputHistoryManager(inputHistoryManager) {
         this.inputHistoryManager = inputHistoryManager;
-        console.log('✅ PinManagerに入力履歴マネージャーが設定されました');
     }
     
     savePinInfo() {

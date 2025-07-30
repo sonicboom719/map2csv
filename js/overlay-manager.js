@@ -147,7 +147,6 @@ export class OverlayManager {
             return;
         }
         
-        console.log('🔄 位置合わせ実行前の状態に復元中...');
         
         // 現在のオーバーレイを削除
         if (this.overlayLayer) {
@@ -201,7 +200,6 @@ export class OverlayManager {
         
         // 画像ウィンドウを再表示して選択点を復元
         if (this.preApplyState.imageData) {
-            console.log('🖼️ 画像ウィンドウを再表示...');
             
             // 画像ウィンドウを表示（復元モードで）
             this.showImageWindow(true);
@@ -210,10 +208,8 @@ export class OverlayManager {
         // ピンマネージャーを一時的に無効化（オーバーレイモードに戻すため）
         if (window.app && window.app.pinManager) {
             window.app.pinManager.disable();
-            console.log('📍 ピンマネージャーを無効化しました');
         }
         
-        console.log('✅ 位置合わせ実行前の状態に復元完了');
     }
     
     handleResetClick() {
@@ -315,15 +311,12 @@ export class OverlayManager {
     }
     
     showImageWindow(restorePoints = false) {
-        console.log('showImageWindow called with imageData:', this.imageData, 'restorePoints:', restorePoints);
-        
-        // 既存のウィンドウがあれば閉じる
         if (this.imageWindow) {
             this.imageWindow.close();
         }
         
         if (!this.imageData) {
-            console.error('imageData is null or undefined in showImageWindow');
+            console.error('画像データが設定されていません');
             return;
         }
         
@@ -340,13 +333,12 @@ export class OverlayManager {
         
         // 復元モードの場合、少し待ってから選択点を設定
         if (restorePoints && this.imagePoints.length > 0) {
-            console.log('📍 復元モード: 選択点を設定します');
-            // 画像の初期描画が完了するまで待つ（初回は少し長めに待つ）
-            const delay = 500; // 初回でも確実に動作するように500msに設定
+            // 画像ウィンドウの初期化とcanvasの準備が完了するまで待つ
+            const delay = 800; // 確実に画像描画が完了するまで待つ
             setTimeout(() => {
-                if (this.imageWindow) {
+                if (this.imageWindow && this.imageWindow.canvas) {
+                    console.log('Restoring points with canvas size:', this.imageWindow.canvas.width, this.imageWindow.canvas.height);
                     this.imageWindow.setSelectedPoints(this.imagePoints);
-                    console.log('📍 選択点を復元しました');
                 }
                 
                 // 選択点設定後にピンを非表示にする
@@ -411,7 +403,7 @@ export class OverlayManager {
         if (this.imagePoints.length === 0) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 画像上で2点を選択します
+                    画像上で2点を選択します
                 </div>
                 <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
                     <div style="font-size: 16px; font-weight: bold; color: #27ae60; margin-bottom: 8px;">
@@ -425,7 +417,7 @@ export class OverlayManager {
         } else if (this.imagePoints.length === 1) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 画像上で2点目を選択します
+                    画像上で2点目を選択します
                 </div>
                 <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
                     <div style="font-size: 16px; font-weight: bold; color: #e67e22; margin-bottom: 8px;">
@@ -442,7 +434,7 @@ export class OverlayManager {
             
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 地図上で対応する2点を選択してください
+                    地図上で対応する2点を選択してください
                 </div>
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
                     <div style="font-size: 16px; font-weight: bold; color: #1976d2; margin-bottom: 8px;">
@@ -456,7 +448,7 @@ export class OverlayManager {
         } else if (this.imagePoints.length === 2 && this.mapPoints.length === 1) {
             info.innerHTML = `
                 <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                    📍 地図上で2点目を選択します
+                    地図上で2点目を選択します
                 </div>
                 <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9c27b0;">
                     <div style="font-size: 16px; font-weight: bold; color: #7b1fa2; margin-bottom: 8px;">

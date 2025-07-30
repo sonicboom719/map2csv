@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>統合テスト - 地図→CSV化支援ツール</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .test-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .test-panel {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .test-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .test-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .test-status.pending { background: #f8f9fa; color: #6c757d; }
+        .test-status.running { background: #fff3cd; color: #856404; }
+        .test-status.passed { background: #d1edff; color: #0c5460; }
+        .test-status.failed { background: #f8d7da; color: #721c24; }
+        
+        .test-control {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .progress-container {
+            margin: 20px 0;
+        }
+        .progress {
+            width: 100%;
+            height: 24px;
+            background: #e9ecef;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .test-details {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .test-log {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <!-- メインアプリケーションのHTML（非表示） -->
+    <div style="display: none;">
+        <div class="map-container">
+            <div id="map" style="height: 400px;"></div>
+        </div>
+        <div id="uploadArea"></div>
+        <input type="file" id="fileInput">
+        <div id="uploadedImage" style="display: none;">
+            <img id="previewImage" alt="プレビュー">
+        </div>
+        <input type="text" id="addressInput">
+        <button id="searchAddress">地図を移動</button>
+        <div id="overlaySection" style="display: none;">
+            <div id="imagePoints"></div>
+            <div id="mapPoints"></div>
+            <button id="applyTransform">位置合わせを実行</button>
+            <button id="resetPoints">リセット</button>
+        </div>
+        <div id="rightSidebar" style="display: none;">
+            <div id="pinSection" style="display: none;">
+                <div id="pinList"></div>
+                <input type="text" id="prefectureInput">
+                <input type="text" id="cityInput">
+                <button id="exportCsv">CSV出力</button>
+            </div>
+        </div>
+        <div id="pinModal" style="display: none;">
+            <div class="modal-content">
+                <select id="pinDisplayNumber">
+                    <option value="">選択してください</option>
+                </select>
+                <input type="text" id="pinNumber">
+                <input type="text" id="pinName">
+                <input type="text" id="pinMemo">
+                <button id="savePinInfo">保存</button>
+                <button id="cancelPinInfo">キャンセル</button>
+            </div>
+        </div>
+        <canvas id="imageCanvas" style="display: none;"></canvas>
+    </div>
+
+    <!-- テストUI -->
+    <div id="testOverlay" class="test-overlay">
+        <div class="test-panel">
+            <div class="test-header">
+                <h2>地図→CSV化支援ツール 統合テスト</h2>
+                <p>アプリケーションの主要機能をテストします</p>
+            </div>
+            
+            <div class="test-control">
+                <button id="startTest">テスト開始</button>
+                <button id="stopTest" disabled>テスト停止</button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress">
+                    <div id="progressBar" class="progress-bar" style="width: 0%">0%</div>
+                </div>
+            </div>
+            
+            <div id="testResults">
+                <!-- テスト結果がここに表示される -->
+            </div>
+            
+            <div class="test-details">
+                <h4>テストログ</h4>
+                <div id="testLog" class="test-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ライブラリ読み込み -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/pdf-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    
+    <script type="module">
+        import { TestFramework } from './test-framework.js';
+        
+        class IntegrationTest extends TestFramework {
+            constructor() {
+                super('統合テスト');
+                this.app = null;
+            }
+            
+            getExpectedTestCount() {
+                return 7; // 実際のテスト数
+            }
+            
+            async runTests() {
+                await this.test('DOM要素の存在確認', this.testDOMElements);
+                await this.test('アプリケーション初期化', this.testAppInitialization);
+                await this.test('地図マネージャー', this.testMapManager);
+                await this.test('画像アップローダー', this.testImageUploader);
+                await this.test('オーバーレイマネージャー', this.testOverlayManager);
+                await this.test('ピンマネージャー', this.testPinManager);
+                await this.test('CSVエクスポーター', this.testCsvExporter);
+            }
+            
+            async testDOMElements() {
+                const requiredElements = [
+                    'map', 'uploadArea', 'fileInput', 'previewImage',
+                    'overlaySection', 'pinList', 'pinModal'
+                ];
+                
+                for (const id of requiredElements) {
+                    const element = document.getElementById(id);
+                    this.assert(element !== null, `要素 #${id} が存在する`);
+                }
+            }
+            
+            async testAppInitialization() {
+                try {
+                    const App = (await import('../js/main.js')).default;
+                    this.app = new App({ skipInputHistory: true });
+                    
+                    this.assert(this.app !== null, 'Appインスタンスが作成される');
+                    this.assert(this.app.mapManager !== null, 'MapManagerが初期化される');
+                    this.assert(this.app.imageUploader !== null, 'ImageUploaderが初期化される');
+                    this.assert(this.app.overlayManager !== null, 'OverlayManagerが初期化される');
+                    this.assert(this.app.pinManager !== null, 'PinManagerが初期化される');
+                    this.assert(this.app.csvExporter !== null, 'CsvExporterが初期化される');
+                } catch (error) {
+                    console.error('App initialization error:', error);
+                    throw error;
+                }
+            }
+            
+            async testMapManager() {
+                if (!this.app || !this.app.mapManager) {
+                    throw new Error('MapManagerが初期化されていません');
+                }
+                this.assert(this.app.mapManager.map !== null, '地図オブジェクトが存在する');
+                this.assert(typeof this.app.mapManager.map.getZoom === 'function', '地図メソッドが利用可能');
+            }
+            
+            async testImageUploader() {
+                if (!this.app || !this.app.imageUploader) {
+                    throw new Error('ImageUploaderが初期化されていません');
+                }
+                this.assert(this.app.imageUploader.uploadArea !== null, 'アップロードエリアが設定される');
+                this.assert(typeof this.app.imageUploader.handleFile === 'function', 'ファイル処理メソッドが存在する');
+            }
+            
+            async testOverlayManager() {
+                if (!this.app || !this.app.overlayManager) {
+                    throw new Error('OverlayManagerが初期化されていません');
+                }
+                this.assert(this.app.overlayManager.map !== null, 'オーバーレイマネージャーに地図が設定される');
+                this.assert(Array.isArray(this.app.overlayManager.imagePoints), '画像ポイント配列が存在する');
+                this.assert(Array.isArray(this.app.overlayManager.mapPoints), '地図ポイント配列が存在する');
+            }
+            
+            async testPinManager() {
+                if (!this.app || !this.app.pinManager) {
+                    throw new Error('PinManagerが初期化されていません');
+                }
+                this.assert(this.app.pinManager.map !== null, 'ピンマネージャーに地図が設定される');
+                this.assert(Array.isArray(this.app.pinManager.pins), 'ピン配列が存在する');
+                this.assert(typeof this.app.pinManager.addPin === 'function', 'ピン追加メソッドが存在する');
+            }
+            
+            async testCsvExporter() {
+                if (!this.app || !this.app.csvExporter) {
+                    throw new Error('CsvExporterが初期化されていません');
+                }
+                this.assert(this.app.csvExporter.pinManager !== null, 'CSVエクスポーターにピンマネージャーが設定される');
+                this.assert(typeof this.app.csvExporter.exportToCsv === 'function', 'CSV出力メソッドが存在する');
+            }
+        }
+        
+        // テスト実行
+        const integrationTest = new IntegrationTest();
+        
+        document.getElementById('startTest').addEventListener('click', () => {
+            integrationTest.run();
+        });
+        
+        document.getElementById('stopTest').addEventListener('click', () => {
+            integrationTest.stop();
+        });
+    </script>
+</body>
+</html>
