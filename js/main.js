@@ -147,5 +147,5 @@ class App {
 
 // アプリケーションの起動
 document.addEventListener('DOMContentLoaded', () => {
-    new App();
+    window.app = new App();
 });

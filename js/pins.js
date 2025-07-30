@@ -259,4 +259,21 @@ export class PinManager {
             memo: pin.memo
         }));
     }
+    
+    clearAllPins() {
+        // 全てのマーカーを地図から削除
+        this.pins.forEach(pin => {
+            if (pin.marker) {
+                this.map.removeLayer(pin.marker);
+            }
+        });
+        
+        // ピン配列をクリア
+        this.pins = [];
+        
+        // UIを更新
+        this.updatePinList();
+        
+        console.log('All pins cleared');
+    }
 }

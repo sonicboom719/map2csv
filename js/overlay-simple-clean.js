@@ -95,7 +95,7 @@ export class OverlayManager {
         });
         
         this.resetButton.addEventListener('click', () => {
-            this.resetPoints();
+            this.handleResetClick();
         });
         
         // 地図のクリックイベント
@@ -105,6 +105,63 @@ export class OverlayManager {
                 this.addMapPoint(e);
             }
         });
+    }
+    
+    handleResetClick() {
+        // ピンが登録されているかチェック
+        const hasPins = window.app && window.app.pinManager && window.app.pinManager.getPins().length > 0;
+        
+        if (hasPins) {
+            // ピンがある場合のみ確認
+            const confirmed = confirm('リセットすると登録されたピンも全てリセットされますがよろしいですか？');
+            if (!confirmed) {
+                return; // キャンセルされた場合は何もしない
+            }
+            
+            // ピンも全てリセット
+            window.app.pinManager.clearAllPins();
+            
+            // ピンマネージャーを無効化
+            window.app.pinManager.disable();
+            
+            // 右サイドバーとピンセクションを非表示
+            document.getElementById('rightSidebar').style.display = 'none';
+            document.getElementById('pinSection').style.display = 'none';
+        }
+        
+        // 既存のオーバーレイを削除
+        if (this.overlayLayer) {
+            this.map.removeLayer(this.overlayLayer);
+            this.overlayLayer = null;
+        }
+        
+        // コントロールパネルを非表示
+        const imageControls = document.getElementById('imageControls');
+        if (imageControls) {
+            imageControls.style.display = 'none';
+        }
+        
+        // 通常のリセット処理を実行
+        this.resetPoints();
+        
+        // 適用ボタンを再表示
+        this.applyButton.style.display = 'block';
+        
+        // 「３．画像の位置合わせ」モードに戻る
+        if (this.imageData) {
+            // ピンマネージャーが有効な場合は無効化（ピンがない場合も念のため）
+            if (window.app && window.app.pinManager && !hasPins) {
+                window.app.pinManager.disable();
+            }
+            
+            // 画像ウィンドウを再表示（既に表示されている場合があるのでチェック）
+            if (!this.imageWindow) {
+                this.startMapSelection();
+            }
+            
+            // 初期状態の指示を表示
+            this.updateInstructionText();
+        }
     }
     
     setImage(imageData) {
@@ -922,6 +979,14 @@ export class OverlayManager {
     deleteImage() {
         console.log('deleteImage called');
         
+        // ピンが登録されている場合はクリア
+        if (window.app && window.app.pinManager) {
+            if (window.app.pinManager.getPins().length > 0) {
+                window.app.pinManager.clearAllPins();
+            }
+            window.app.pinManager.disable();
+        }
+        
         // 画像ウィンドウを先に閉じる
         if (this.imageWindow) {
             console.log('Closing image window');
@@ -961,7 +1026,13 @@ export class OverlayManager {
         // 画像データをクリア
         this.imageData = null;
         
-        console.log('deleteImage completed');
+        // 都道府県・市区町村の入力もクリア
+        const prefectureInput = document.getElementById('prefectureInput');
+        const cityInput = document.getElementById('cityInput');
+        if (prefectureInput) prefectureInput.value = '';
+        if (cityInput) cityInput.value = '';
+        
+        console.log('deleteImage completed - reset to initial state');
     }
     
     resetPointsOnly() {
@@ -1026,6 +1097,11 @@ export class OverlayManager {
         const imageControls = document.getElementById('imageControls');
         if (imageControls) {
             imageControls.style.display = 'none';
+        }
+        
+        // ピンマネージャーを無効化（念のため）
+        if (window.app && window.app.pinManager) {
+            window.app.pinManager.disable();
         }
         
         this.updatePointsDisplay();
