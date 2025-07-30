@@ -123,6 +123,15 @@ export class PinManager {
             this.openModal(pin);
         });
         
+        // マウスオーバー/アウトイベント
+        marker.on('mouseover', () => {
+            this.highlightPinInList(pin.id, true);
+        });
+        
+        marker.on('mouseout', () => {
+            this.highlightPinInList(pin.id, false);
+        });
+        
         // ドラッグイベント
         marker.on('dragstart', () => {
             this.highlightPinInList(pin.id, true);
@@ -175,8 +184,8 @@ export class PinManager {
         this.currentPin.marker.setIcon(L.divIcon({
             className: 'custom-marker-with-number',
             html: htmlContent,
-            iconSize: displayNumber ? [30, 30] : [20, 20],
-            iconAnchor: displayNumber ? [15, 15] : [10, 10]
+            iconSize: displayNumber ? [25, 25] : [20, 20],
+            iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
         }));
         
         this.updatePinList();
@@ -263,6 +272,15 @@ export class PinManager {
             // ピンIDを要素に設定
             div.setAttribute('data-pin-id', pin.id);
             
+            // ピンリストアイテムのマウスオーバー/アウトイベント
+            div.addEventListener('mouseover', () => {
+                this.highlightPinOnMap(pin.id, true);
+            });
+            
+            div.addEventListener('mouseout', () => {
+                this.highlightPinOnMap(pin.id, false);
+            });
+            
             this.pinList.appendChild(div);
         });
     }
@@ -275,6 +293,28 @@ export class PinManager {
                 pinElement.style.transition = 'background-color 0.3s';
             } else {
                 pinElement.style.backgroundColor = '';
+            }
+        }
+    }
+    
+    highlightPinOnMap(pinId, highlight) {
+        const pin = this.pins.find(p => p.id === pinId);
+        if (pin && pin.marker) {
+            const markerElement = pin.marker.getElement();
+            if (markerElement) {
+                const pinMarkerDiv = markerElement.querySelector('.pin-marker');
+                if (pinMarkerDiv) {
+                    if (highlight) {
+                        pinMarkerDiv.style.backgroundColor = '#f39c12';
+                        pinMarkerDiv.style.transform = 'scale(1.2)';
+                        pinMarkerDiv.style.transition = 'all 0.3s';
+                        pinMarkerDiv.style.zIndex = '1000';
+                    } else {
+                        pinMarkerDiv.style.backgroundColor = '#e74c3c';
+                        pinMarkerDiv.style.transform = 'scale(1)';
+                        pinMarkerDiv.style.zIndex = '';
+                    }
+                }
             }
         }
     }
