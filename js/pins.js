@@ -192,7 +192,9 @@ export class PinManager {
             
             const numberDiv = document.createElement('div');
             numberDiv.className = 'pin-number';
-            numberDiv.textContent = pin.number || `ピン ${pin.id}`;
+            const numberText = pin.number || `ピン ${pin.id}`;
+            const nameText = pin.name ? ` - ${pin.name}` : '';
+            numberDiv.textContent = numberText + nameText;
             
             const coordsDiv = document.createElement('div');
             coordsDiv.className = 'pin-coords';

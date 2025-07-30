@@ -127,11 +127,7 @@ export class SimpleDragResizeWindow {
             ctx.lineTo(width, height);
             ctx.stroke();
             
-            // ラベル
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = 'bold 12px Arial';
-            ctx.fillText('1.左上', 5, 15);
-            ctx.fillText('2.右下', width - 45, height - 5);
+            // ラベル表示を削除
             
             // リサイズハンドルは削除
         };
@@ -263,11 +259,7 @@ export class SimpleDragResizeWindow {
             ctx.lineTo(width, height);
             ctx.stroke();
             
-            // ラベル
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = 'bold 12px Arial';
-            ctx.fillText('1.左上', 5, 15);
-            ctx.fillText('2.右下', width - 45, height - 5);
+            // ラベル表示を削除
             
             // 選択された点を描画
             ctx.setLineDash([]); // 線のスタイルをリセット
@@ -485,11 +477,7 @@ export class SimpleDragResizeWindow {
             ctx.lineTo(width, height);
             ctx.stroke();
             
-            // ラベル
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = 'bold 12px Arial';
-            ctx.fillText('1.左上', 5, 15);
-            ctx.fillText('2.右下', width - 45, height - 5);
+            // ラベル表示を削除
             
             // 選択された点も再描画（リサイズ後の座標に調整）
             ctx.setLineDash([]); // 線のスタイルをリセット
