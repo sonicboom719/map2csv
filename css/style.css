@@ -360,6 +360,33 @@ button {
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
+/* 番号付きマーカー */
+.custom-marker-with-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-marker {
+    background-color: #e74c3c;
+    border-radius: 50%;
+    width: 100%;
+    height: 100%;
+    border: 2px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.pin-number-label {
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
 /* 選択ポイントマーカー */
 .selection-marker {
     width: 20px;

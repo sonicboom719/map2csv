@@ -4,6 +4,7 @@ export class PinManager {
         this.pinSection = options.pinSection;
         this.pinList = options.pinList;
         this.pinModal = options.pinModal;
+        this.pinDisplayNumberInput = document.getElementById('pinDisplayNumber');
         this.pinNumberInput = options.pinNumberInput;
         this.pinNameInput = options.pinNameInput;
         this.pinMemoInput = options.pinMemoInput;
@@ -39,6 +40,23 @@ export class PinManager {
         this.pinModal.addEventListener('click', (e) => {
             if (e.target === this.pinModal) {
                 this.closeModal();
+            }
+        });
+        
+        // メモ欄で改行を禁止
+        this.pinMemoInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+        
+        // ピン番号（表示用）に数字のみ入力可能にする
+        this.pinDisplayNumberInput.addEventListener('input', (e) => {
+            // 数字以外を削除
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            // 先頭の0を削除（0のみの場合は除く）
+            if (e.target.value.length > 1 && e.target.value[0] === '0') {
+                e.target.value = e.target.value.replace(/^0+/, '');
             }
         });
     }
@@ -81,17 +99,18 @@ export class PinManager {
         const pin = {
             id: this.pinIdCounter++,
             latlng: latlng,
-            number: '',
+            displayNumber: '', // 表示用番号
+            number: '', // 掲示場番号
             name: '',
             memo: '',
             marker: null
         };
         
-        // マーカーを作成
+        // マーカーを作成（初期は番号なし）
         const marker = L.marker(latlng, {
             icon: L.divIcon({
-                className: 'custom-marker',
-                html: '',
+                className: 'custom-marker-with-number',
+                html: '<div class="pin-marker"></div>',
                 iconSize: [20, 20],
                 iconAnchor: [10, 10]
             }),
@@ -126,11 +145,12 @@ export class PinManager {
     
     openModal(pin) {
         this.currentPin = pin;
+        this.pinDisplayNumberInput.value = pin.displayNumber || '';
         this.pinNumberInput.value = pin.number || '';
         this.pinNameInput.value = pin.name || '';
         this.pinMemoInput.value = pin.memo || '';
         this.pinModal.style.display = 'flex';
-        this.pinNumberInput.focus();
+        this.pinDisplayNumberInput.focus();
     }
     
     closeModal() {
@@ -141,16 +161,22 @@ export class PinManager {
     savePinInfo() {
         if (!this.currentPin) return;
         
+        this.currentPin.displayNumber = this.pinDisplayNumberInput.value.trim();
         this.currentPin.number = this.pinNumberInput.value.trim();
         this.currentPin.name = this.pinNameInput.value.trim();
         this.currentPin.memo = this.pinMemoInput.value.trim();
         
-        // マーカーの表示を更新（常に赤●のまま）
+        // マーカーの表示を更新（表示用番号付き）
+        const displayNumber = this.currentPin.displayNumber;
+        const htmlContent = displayNumber ? 
+            `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>` : 
+            '<div class="pin-marker"></div>';
+            
         this.currentPin.marker.setIcon(L.divIcon({
-            className: 'custom-marker',
-            html: '',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
+            className: 'custom-marker-with-number',
+            html: htmlContent,
+            iconSize: displayNumber ? [30, 30] : [20, 20],
+            iconAnchor: displayNumber ? [15, 15] : [10, 10]
         }));
         
         this.updatePinList();
@@ -192,9 +218,12 @@ export class PinManager {
             
             const numberDiv = document.createElement('div');
             numberDiv.className = 'pin-number';
+            
+            // 表示用番号があれば先頭に#付きで表示
+            const displayNumberText = pin.displayNumber ? `#${pin.displayNumber} ` : '';
             const numberText = pin.number || `ピン ${pin.id}`;
             const nameText = pin.name ? ` - ${pin.name}` : '';
-            numberDiv.textContent = numberText + nameText;
+            numberDiv.textContent = displayNumberText + numberText + nameText;
             
             const coordsDiv = document.createElement('div');
             coordsDiv.className = 'pin-coords';

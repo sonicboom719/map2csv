@@ -50,7 +50,7 @@ export class SimpleDragResizeWindow {
         this.imageArea = document.createElement('div');
         this.imageArea.style.cssText = `
             position: relative;
-            padding: 5px;
+            padding: 0;
             background: white;
             border-radius: 0 0 8px 8px;
         `;
@@ -190,24 +190,18 @@ export class SimpleDragResizeWindow {
         
         const clickedPoint = { x: imageX, y: imageY, canvasX: x, canvasY: y };
         
-        // 既存の点をクリックした場合は削除
+        // 既存の点をクリックした場合はドラッグ開始
         const tolerance = 15; // クリック判定の許容範囲
-        for (let i = this.selectedPoints.length - 1; i >= 0; i--) {
+        for (let i = 0; i < this.selectedPoints.length; i++) {
             const point = this.selectedPoints[i];
             const distance = Math.sqrt(
                 Math.pow(point.canvasX - x, 2) + Math.pow(point.canvasY - y, 2)
             );
             
             if (distance <= tolerance) {
-                // 最後に選択した点のみ削除可能
-                if (i === this.selectedPoints.length - 1) {
-                    this.selectedPoints.splice(i, 1);
-                    this.redrawWithPoints();
-                    if (this.onPointClick) {
-                        this.onPointClick({ type: 'pointRemoved', points: this.selectedPoints });
-                    }
-                    return;
-                }
+                // ドラッグを開始
+                this.startPointDrag(i, e);
+                return;
             }
         }
         
@@ -224,6 +218,56 @@ export class SimpleDragResizeWindow {
                 });
             }
         }
+    }
+    
+    startPointDrag(pointIndex, e) {
+        this.isDraggingPoint = true;
+        this.draggedPointIndex = pointIndex;
+        this.canvas.style.cursor = 'move';
+        
+        // マウス移動とマウスアップのイベントリスナーを追加
+        const handleMouseMove = (e) => {
+            if (!this.isDraggingPoint) return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const x = Math.max(0, Math.min(this.canvas.width, e.clientX - rect.left));
+            const y = Math.max(0, Math.min(this.canvas.height, e.clientY - rect.top));
+            
+            // 画像座標に変換
+            const imageX = (x / this.canvas.width) * this.imageData.width;
+            const imageY = (y / this.canvas.height) * this.imageData.height;
+            
+            // 点の位置を更新
+            this.selectedPoints[this.draggedPointIndex] = {
+                x: imageX,
+                y: imageY,
+                canvasX: x,
+                canvasY: y
+            };
+            
+            this.redrawWithPoints();
+            
+            // 点の位置が変更されたことを通知
+            if (this.onPointClick) {
+                this.onPointClick({
+                    type: 'pointMoved',
+                    index: this.draggedPointIndex,
+                    points: this.selectedPoints
+                });
+            }
+        };
+        
+        const handleMouseUp = () => {
+            this.isDraggingPoint = false;
+            this.draggedPointIndex = null;
+            this.canvas.style.cursor = 'crosshair';
+            
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
     }
     
     redrawWithPoints() {

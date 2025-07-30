@@ -99,12 +99,14 @@ export class OverlayManager {
         });
         
         // 地図のクリックイベント
-        this.map.on('click', (e) => {
+        this.mapClickHandler = (e) => {
             // 画像で2点選択完了後はマップクリックを受け付ける
             if (this.imagePoints.length === 2) {
                 this.addMapPoint(e);
             }
-        });
+        };
+        
+        this.map.on('click', this.mapClickHandler);
     }
     
     handleResetClick() {
@@ -235,13 +237,10 @@ export class OverlayManager {
             this.imagePoints = data.points;
             this.updateUIForImagePoints();
             this.updateInstructionText();
-        } else if (data.type === 'pointRemoved') {
+        } else if (data.type === 'pointMoved') {
             this.imagePoints = data.points;
+            // 点が移動しても選択状態は維持
             this.updateUIForImagePoints();
-            
-            // マップの選択をリセット
-            this.resetMapPoints();
-            this.updateInstructionText();
         }
     }
     
@@ -354,72 +353,48 @@ export class OverlayManager {
         const latlng = event.latlng;
         console.log('Map clicked at:', latlng);
         
-        // 既存の点をクリックした場合は削除（最後の点のみ）
-        const clickPixel = this.map.latLngToContainerPoint(latlng);
-        const tolerance = 20; // ピクセル単位での許容範囲
-        
-        for (let i = this.mapPoints.length - 1; i >= 0; i--) {
-            const point = this.mapPoints[i];
-            const pointPixel = this.map.latLngToContainerPoint(point);
-            const distance = Math.sqrt(
-                Math.pow(pointPixel.x - clickPixel.x, 2) + Math.pow(pointPixel.y - clickPixel.y, 2)
-            );
-            
-            console.log(`Distance to point ${i + 1}:`, distance, 'pixels');
-            
-            if (distance <= tolerance) {
-                // 最後に選択した点のみ削除可能
-                if (i === this.mapPoints.length - 1) {
-                    console.log(`Removing last point ${i + 1}`);
-                    this.mapPoints.splice(i, 1);
-                    
-                    // 各点につき2つのマーカー（ピンと番号）を削除
-                    const markerIndex = i * 2;
-                    if (this.mapMarkers[markerIndex]) {
-                        this.mapMarkers[markerIndex].remove();
-                    }
-                    if (this.mapMarkers[markerIndex + 1]) {
-                        this.mapMarkers[markerIndex + 1].remove();
-                    }
-                    this.mapMarkers.splice(markerIndex, 2);
-                    
-                    // UIを更新
-                    this.updateUIForImagePoints();
-                    this.updateInstructionText();
-                    this.updatePointsDisplay();
-                    return;
-                } else {
-                    console.log(`Cannot remove point ${i + 1} - not the last point`);
-                }
-            }
-        }
-        
         // 新しい点を追加（最大2点）
         if (this.mapPoints.length < 2) {
             console.log(`Adding new point ${this.mapPoints.length + 1} at:`, latlng);
             this.mapPoints.push(latlng);
             
             const colors = ['#27ae60', '#e74c3c'];
+            const index = this.mapPoints.length - 1;
             
-            // 普通のピンマーカーを作成
+            // ドラッグ可能なマーカーを作成
             const marker = L.circleMarker(latlng, {
                 radius: 8,
-                fillColor: colors[this.mapPoints.length - 1],
+                fillColor: colors[index],
                 color: 'white',
                 weight: 3,
                 opacity: 1,
-                fillOpacity: 1
+                fillOpacity: 1,
+                draggable: true
             }).addTo(this.map);
             
-            // 番号を追加
+            // マーカーにドラッグ機能を手動で追加
+            this.addMapMarkerDragHandler(marker, index);
+            
+            // 番号を追加（ドラッグ可能）
             const numberMarker = L.marker(latlng, {
                 icon: L.divIcon({
                     className: 'map-point-number',
                     html: `<div style="background: transparent; color: white; font-size: 12px; font-weight: bold; text-align: center; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">${this.mapPoints.length}</div>`,
                     iconSize: [16, 16],
                     iconAnchor: [8, 8]
-                })
+                }),
+                draggable: true
             }).addTo(this.map);
+            
+            // 番号マーカーのドラッグハンドラー
+            numberMarker.on('drag', (e) => {
+                const newLatLng = e.target.getLatLng();
+                this.mapPoints[index] = newLatLng;
+                marker.setLatLng(newLatLng);
+            });
+            
+            // マーカーのドラッグに番号を追従させる
+            marker._numberMarker = numberMarker;
             
             this.mapMarkers.push(marker);
             this.mapMarkers.push(numberMarker);
@@ -430,11 +405,44 @@ export class OverlayManager {
             this.updateUIForImagePoints();
             this.updateInstructionText();
             this.updatePointsDisplay();
-            
-            // 2点完了後も取消操作のためクリックを受け付ける
         } else {
             console.log('Maximum 2 points already selected');
         }
+    }
+    
+    addMapMarkerDragHandler(marker, index) {
+        let isDragging = false;
+        let startLatLng;
+        
+        marker.on('mousedown', (e) => {
+            isDragging = true;
+            startLatLng = e.latlng;
+            L.DomEvent.stopPropagation(e);
+            
+            const mouseMoveHandler = (e) => {
+                if (!isDragging) return;
+                
+                const containerPoint = this.map.mouseEventToContainerPoint(e);
+                const newLatLng = this.map.containerPointToLatLng(containerPoint);
+                
+                marker.setLatLng(newLatLng);
+                this.mapPoints[index] = newLatLng;
+                
+                // 番号マーカーも一緒に移動
+                if (marker._numberMarker) {
+                    marker._numberMarker.setLatLng(newLatLng);
+                }
+            };
+            
+            const mouseUpHandler = () => {
+                isDragging = false;
+                this.map.off('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+            };
+            
+            this.map.on('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        });
     }
     
     showPreviewRectangle() {
@@ -815,11 +823,15 @@ export class OverlayManager {
         if (overlayResult instanceof Promise) {
             overlayResult.then((overlay) => {
                 this.overlayLayer = overlay;
+                this.finishApplyOverlay();
             });
         } else {
             this.overlayLayer = overlayResult;
+            this.finishApplyOverlay();
         }
-        
+    }
+    
+    finishApplyOverlay() {
         // 画像ウィンドウは閉じる
         if (this.imageWindow) {
             this.imageWindow.close();
@@ -828,14 +840,19 @@ export class OverlayManager {
         // マップのカーソルを元に戻す
         this.setMapCursor('');
         
-        // 完了通知
-        if (this.onOverlayApplied) {
-            this.onOverlayApplied();
+        // オーバーレイマネージャーのマップクリックイベントを削除（ピンマネージャーと競合しないように）
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
         }
         
         // UIの更新
         this.applyButton.disabled = true;
         this.applyButton.style.display = 'none';
+        
+        // オーバーレイが完全に作成されてからピンマネージャーを有効化
+        if (this.onOverlayApplied) {
+            this.onOverlayApplied();
+        }
         
         const info = this.overlaySection.querySelector('.info');
         info.innerHTML = `
@@ -927,6 +944,11 @@ export class OverlayManager {
         if (this.overlayLayer) {
             this.map.removeLayer(this.overlayLayer);
             this.overlayLayer = null;
+        }
+        
+        // ピンマネージャーを無効化（位置調整中はピンを配置できないようにする）
+        if (window.app && window.app.pinManager) {
+            window.app.pinManager.disable();
         }
         
         // 元の2点を復元
@@ -1102,6 +1124,12 @@ export class OverlayManager {
         // ピンマネージャーを無効化（念のため）
         if (window.app && window.app.pinManager) {
             window.app.pinManager.disable();
+        }
+        
+        // オーバーレイマネージャーのマップクリックイベントを復活
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
+            this.map.on('click', this.mapClickHandler);
         }
         
         this.updatePointsDisplay();

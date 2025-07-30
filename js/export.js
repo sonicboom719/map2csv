@@ -30,7 +30,7 @@ export class CsvExporter {
             ...pins.map(pin => [
                 prefecture,
                 city,
-                pin.number || '',
+                pin.number || '', // 掲示場番号を出力
                 '', // address is always empty
                 pin.name || '',
                 pin.latitude.toFixed(6),
