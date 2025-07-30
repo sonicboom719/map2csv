@@ -467,81 +467,54 @@ export class OverlayManager {
         console.log('Image points:', imagePoint1, imagePoint2);
         console.log('Map points:', mapPoint1, mapPoint2);
         
-        // 画像上の2点間のベクトルと距離
-        const imageVector = {
-            x: imagePoint2.x - imagePoint1.x,
-            y: imagePoint2.y - imagePoint1.y
-        };
-        const imageDistance = Math.sqrt(imageVector.x * imageVector.x + imageVector.y * imageVector.y);
-        
-        // 地図上の2点間のベクトルと距離
-        const mapVector = {
-            lat: mapPoint2.lat - mapPoint1.lat,
-            lng: mapPoint2.lng - mapPoint1.lng
-        };
-        const mapDistance = Math.sqrt(mapVector.lat * mapVector.lat + mapVector.lng * mapVector.lng);
-        
-        // 画像座標系：X右、Y下（通常のピクセル座標）
-        // 地図座標系：X東（経度）、Y北（緯度）
-        
-        // 画像上の2点のベクトル
-        const imgDx = imageVector.x;
-        const imgDy = imageVector.y;
-        
-        // 地図上の2点のベクトル
-        const mapDx = mapVector.lng;
-        const mapDy = mapVector.lat;
-        
-        // 画像ベクトルの角度
-        const imageAngle = Math.atan2(imgDy, imgDx);
-        
-        // 地図ベクトルの角度
-        const mapAngle = Math.atan2(mapDy, mapDx);
-        
-        // 回転角度（地図に合わせるために画像を回転させる角度）
-        const rotation = mapAngle - imageAngle;
-        
-        // スケール（距離の比率）
-        const scale = mapDistance / imageDistance;
-        
-        console.log('Transform params:', { 
-            imageAngle: imageAngle * 180 / Math.PI, 
-            mapAngle: mapAngle * 180 / Math.PI,
-            rotation: rotation * 180 / Math.PI, 
-            scale 
-        });
-        
-        // 画像の4隅の座標
-        const imageWidth = this.imageData.width;
-        const imageHeight = this.imageData.height;
-        
-        // 相似変換を適用する関数
-        const transformPoint = (imageX, imageY) => {
-            // 画像の第1点を原点とした相対座標
-            const relX = imageX - imagePoint1.x;
-            const relY = imageY - imagePoint1.y;
-            
-            // 回転を適用
-            const cos_r = Math.cos(rotation);
-            const sin_r = Math.sin(rotation);
-            const rotX = relX * cos_r - relY * sin_r;
-            const rotY = relX * sin_r + relY * cos_r;
-            
-            // スケーリングして地図座標に変換
-            const lng = mapPoint1.lng + rotX * scale;
-            const lat = mapPoint1.lat + rotY * scale;
-            
-            return [lat, lng];
-        };
-        
-        // 変換パラメータを保存（後で使用するため）
+        // 変換パラメータを保存（回転用）
         this.transformParams = {
-            rotation: rotation,
-            scale: scale,
             imageOrigin: imagePoint1,
             imagePoint2: imagePoint2,
             mapOrigin: mapPoint1,
             mapPoint2: mapPoint2
+        };
+        
+        // 2点から画像全体の配置を計算
+        // 画像の4隅の座標
+        const imageWidth = this.imageData.width;
+        const imageHeight = this.imageData.height;
+        
+        // 画像上の2点間のベクトル
+        const imageVector = {
+            x: imagePoint2.x - imagePoint1.x,
+            y: imagePoint2.y - imagePoint1.y
+        };
+        
+        // 地図上の2点間のベクトル
+        const mapVector = {
+            lat: mapPoint2.lat - mapPoint1.lat,
+            lng: mapPoint2.lng - mapPoint1.lng
+        };
+        
+        // スケールファクターを計算（2点間の距離比）
+        const imageDistance = Math.sqrt(imageVector.x * imageVector.x + imageVector.y * imageVector.y);
+        const mapDistance = Math.sqrt(mapVector.lat * mapVector.lat + mapVector.lng * mapVector.lng);
+        const scale = mapDistance / imageDistance;
+        
+        console.log('Scale factor:', scale);
+        
+        // 単純な線形変換（アスペクト比を保持）
+        // 画像の第1点を基準にして、第2点が一致するように配置
+        const scaleX = mapVector.lng / imageVector.x;
+        const scaleY = mapVector.lat / imageVector.y;
+        
+        console.log('Scale factors:', { scaleX, scaleY });
+        
+        // 画像の4隅を線形変換で地図座標に変換
+        const transformPoint = (imageX, imageY) => {
+            const relX = imageX - imagePoint1.x;
+            const relY = imageY - imagePoint1.y;
+            
+            const lat = mapPoint1.lat + (relY * scaleY);
+            const lng = mapPoint1.lng + (relX * scaleX);
+            
+            return [lat, lng];
         };
         
         // 画像の4隅を変換
@@ -554,7 +527,7 @@ export class OverlayManager {
         
         console.log('Transformed corners:', corners);
         
-        // 境界ボックスを作成
+        // 境界ボックスを作成（元の画像のアスペクト比を保持）
         const lats = corners.map(corner => corner[0]);
         const lngs = corners.map(corner => corner[1]);
         
@@ -578,236 +551,60 @@ export class OverlayManager {
     }
     
     create2PointImageOverlay(bounds, opacity) {
-        // Canvas-based回転対応オーバーレイを作成
-        const RotatedCanvasOverlay = L.Layer.extend({
-            initialize: function(imageUrl, imageData, transformParams, options) {
-                this._imageUrl = imageUrl;
-                this._imageData = imageData;
-                this._transformParams = transformParams;
-                L.setOptions(this, options);
-            },
-            
-            onAdd: function(map) {
-                this._map = map;
-                
-                console.log('Canvas Overlay: onAdd called');
-                
-                // Canvas要素を作成
-                this._canvas = L.DomUtil.create('canvas');
-                this._canvas.style.position = 'absolute';
-                this._canvas.style.top = '0';
-                this._canvas.style.left = '0';
-                this._canvas.style.pointerEvents = 'none';
-                this._canvas.style.opacity = this.options.opacity || 1;
-                this._canvas.style.zIndex = '1';
-                
-                // マップペインに追加
-                map.getPanes().overlayPane.appendChild(this._canvas);
-                console.log('Canvas added to overlay pane');
-                
-                // 画像をロード
-                this._image = new Image();
-                this._image.onload = () => {
-                    console.log('Image loaded successfully');
-                    this._update();
-                };
-                this._image.onerror = (e) => {
-                    console.error('Image load error:', e);
-                };
-                this._image.src = this._imageUrl;
-                
-                // イベントリスナーを追加
-                map.on('viewreset zoom move moveend zoomend', this._update, this);
-                
-                // 初期描画
-                this._update();
-            },
-            
-            onRemove: function(map) {
-                if (this._canvas) {
-                    map.getPanes().overlayPane.removeChild(this._canvas);
-                }
-                map.off('viewreset zoom move moveend zoomend', this._update, this);
-            },
-            
-            _update: function() {
-                if (!this._map || !this._canvas || !this._image) {
-                    console.log('Canvas update skipped: missing elements');
-                    return;
-                }
-                
-                if (!this._image.complete) {
-                    console.log('Image not loaded yet');
-                    return;
-                }
-                
-                const map = this._map;
-                const mapSize = map.getSize();
-                
-                console.log('Canvas updating:', { mapSize });
-                
-                // Canvasサイズを設定
-                this._canvas.width = mapSize.x;
-                this._canvas.height = mapSize.y;
-                
-                const ctx = this._canvas.getContext('2d');
-                ctx.clearRect(0, 0, mapSize.x, mapSize.y);
-                
-                // 変換パラメータを取得
-                const params = this._transformParams;
-                if (!params) {
-                    console.log('No transform params available');
-                    return;
-                }
-                
-                const imagePoint1 = params.imageOrigin;
-                const imagePoint2 = params.imagePoint2;
-                const mapPoint1 = params.mapOrigin;
-                const mapPoint2 = params.mapPoint2;
-                
-                // 地図座標をピクセル座標に変換
-                const mapPixel1 = map.latLngToContainerPoint([mapPoint1.lat, mapPoint1.lng]);
-                const mapPixel2 = map.latLngToContainerPoint([mapPoint2.lat, mapPoint2.lng]);
-                
-                // ベクトルを計算
-                const imageVector = {
-                    x: imagePoint2.x - imagePoint1.x,
-                    y: imagePoint2.y - imagePoint1.y
-                };
-                
-                const mapVector = {
-                    x: mapPixel2.x - mapPixel1.x,
-                    y: mapPixel2.y - mapPixel1.y
-                };
-                
-                // 角度を計算
-                const imageAngle = Math.atan2(imageVector.y, imageVector.x);
-                const mapAngle = Math.atan2(mapVector.y, mapVector.x);
-                const rotation = mapAngle - imageAngle;
-                
-                // スケールを計算
-                const imageDistance = Math.sqrt(imageVector.x * imageVector.x + imageVector.y * imageVector.y);
-                const mapDistance = Math.sqrt(mapVector.x * mapVector.x + mapVector.y * mapVector.y);
-                const scale = mapDistance / imageDistance;
-                
-                console.log('Canvas transform:', {
-                    rotation: rotation * 180 / Math.PI,
-                    scale: scale,
-                    mapPixel1: mapPixel1
-                });
-                
-                // Canvas変換を適用
-                ctx.save();
-                
-                // 1. 地図上の第一基準点に移動
-                ctx.translate(mapPixel1.x, mapPixel1.y);
-                
-                // 2. 回転を適用
-                ctx.rotate(rotation);
-                
-                // 3. スケールを適用
-                ctx.scale(scale, scale);
-                
-                // 4. 画像の第一基準点を原点に移動
-                ctx.translate(-imagePoint1.x, -imagePoint1.y);
-                
-                // 5. 画像を描画
-                try {
-                    ctx.drawImage(this._image, 0, 0, this._imageData.width, this._imageData.height);
-                    console.log('Image drawn successfully');
-                } catch (e) {
-                    console.error('Error drawing image:', e);
-                }
-                
-                ctx.restore();
-            },
-            
-            setOpacity: function(opacity) {
-                this.options.opacity = opacity;
-                if (this._canvas) {
-                    this._canvas.style.opacity = opacity;
-                }
+        // 回転角度を計算
+        const params = this.transformParams;
+        const imagePoint1 = params.imageOrigin;
+        const imagePoint2 = params.imagePoint2;
+        const mapPoint1 = params.mapOrigin;
+        const mapPoint2 = params.mapPoint2;
+        
+        // 画像上の2点間のベクトル
+        const imageVector = {
+            x: imagePoint2.x - imagePoint1.x,
+            y: imagePoint2.y - imagePoint1.y
+        };
+        
+        // 地図上の2点間のベクトル（緯度経度）
+        const mapVector = {
+            lat: mapPoint2.lat - mapPoint1.lat,
+            lng: mapPoint2.lng - mapPoint1.lng
+        };
+        
+        // 画像ベクトルの角度
+        const imageAngle = Math.atan2(imageVector.y, imageVector.x);
+        
+        // 地図ベクトルの角度
+        const mapAngle = Math.atan2(mapVector.lat, mapVector.lng);
+        
+        // 回転角度（度数）
+        const rotationDegrees = (mapAngle - imageAngle) * 180 / Math.PI;
+        
+        console.log('Image overlay rotation:', rotationDegrees, 'degrees');
+        
+        // 標準的なLeaflet ImageOverlayを作成
+        const overlay = L.imageOverlay(this.imageData.url, bounds, {
+            opacity: opacity,
+            interactive: false
+        }).addTo(this.map);
+        
+        // オーバーレイが追加された後にCSS回転を適用
+        overlay.on('add', function() {
+            const img = this.getElement();
+            if (img) {
+                img.style.transformOrigin = 'center center';
+                img.style.transform = `rotate(${rotationDegrees}deg)`;
+                console.log('CSS rotation applied:', rotationDegrees, 'degrees');
             }
         });
         
-        const overlay = new RotatedCanvasOverlay(
-            this.imageData.url,
-            this.imageData,
-            this.transformParams,
-            { opacity: opacity }
-        ).addTo(this.map);
-        
-        // 検証用マーカーを追加（デバッグ用）
-        if (true) { // デバッグ用フラグ
-            const imagePoint1 = this.imagePoints[0];
-            const imagePoint2 = this.imagePoints[1];
-            
-            // 保存された変換パラメータを使用
-            const transformPoint = (imageX, imageY) => {
-                if (!this.transformParams) {
-                    // フォールバック：古い方法
-                    const relativeX = imageX - imagePoint1.x;
-                    const relativeY = imageY - imagePoint1.y;
-                    
-                    const mapVector = {
-                        lat: this.mapPoints[1].lat - this.mapPoints[0].lat,
-                        lng: this.mapPoints[1].lng - this.mapPoints[0].lng
-                    };
-                    const imageVector = {
-                        x: imagePoint2.x - imagePoint1.x,
-                        y: imagePoint2.y - imagePoint1.y
-                    };
-                    
-                    const scaleX = mapVector.lng / imageVector.x;
-                    const scaleY = mapVector.lat / imageVector.y;
-                    
-                    const lat = this.mapPoints[0].lat + (relativeY * scaleY);
-                    const lng = this.mapPoints[0].lng + (relativeX * scaleX);
-                    
-                    return [lat, lng];
-                }
-                
-                // 新しい方法：回転を考慮した相似変換
-                const params = this.transformParams;
-                const relX = imageX - params.imageOrigin.x;
-                const relY = imageY - params.imageOrigin.y;
-                
-                // 回転を適用
-                const cos_r = Math.cos(params.rotation);
-                const sin_r = Math.sin(params.rotation);
-                const rotX = relX * cos_r - relY * sin_r;
-                const rotY = relX * sin_r + relY * cos_r;
-                
-                // スケーリングして地図座標に変換
-                const lng = params.mapOrigin.lng + rotX * params.scale;
-                const lat = params.mapOrigin.lat + rotY * params.scale;
-                
-                return [lat, lng];
-            };
-            
-            // 変換された基準点をマーカーで表示
-            const transformedPoint1 = transformPoint(imagePoint1.x, imagePoint1.y);
-            const transformedPoint2 = transformPoint(imagePoint2.x, imagePoint2.y);
-            
-            // 検証用マーカー（小さく薄く表示）
-            L.circleMarker(transformedPoint1, {
-                radius: 3,
-                fillColor: '#27ae60',
-                color: 'white',
-                weight: 1,
-                opacity: 0.7,
-                fillOpacity: 0.7
-            }).addTo(this.map);
-            
-            L.circleMarker(transformedPoint2, {
-                radius: 3,
-                fillColor: '#e74c3c',
-                color: 'white',
-                weight: 1,
-                opacity: 0.7,
-                fillOpacity: 0.7
-            }).addTo(this.map);
-        }
+        // カスタムsetOpacityメソッドを追加
+        overlay.setOpacity = function(newOpacity) {
+            const img = this.getElement();
+            if (img) {
+                img.style.opacity = newOpacity;
+            }
+            this.options.opacity = newOpacity;
+        }.bind(overlay);
         
         return overlay;
     }
