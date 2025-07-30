@@ -1,4 +1,4 @@
-# PinMap-Overlay ツール
+# 地図→CSV化支援ツール
 
 地図画像（PDF/画像ファイル）をGoogle Maps/OpenStreetMap上に重ね合わせ、ピンを配置してポスター掲示場情報を管理するWebアプリケーションです。
 
@@ -85,7 +85,7 @@
 
 ### ファイル構成
 ```
-pinmap_overlay/
+map2csv/
 ├── index.html          # メインHTML
 ├── css/
 │   └── style.css      # スタイルシート
