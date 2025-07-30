@@ -551,62 +551,155 @@ export class OverlayManager {
     }
     
     create2PointImageOverlay(bounds, opacity) {
-        // 回転角度を計算
+        // 回転が必要な場合は画像を事前回転
         const params = this.transformParams;
-        const imagePoint1 = params.imageOrigin;
-        const imagePoint2 = params.imagePoint2;
-        const mapPoint1 = params.mapOrigin;
-        const mapPoint2 = params.mapPoint2;
-        
-        // 画像上の2点間のベクトル
         const imageVector = {
-            x: imagePoint2.x - imagePoint1.x,
-            y: imagePoint2.y - imagePoint1.y
+            x: params.imagePoint2.x - params.imageOrigin.x,
+            y: params.imagePoint2.y - params.imageOrigin.y
         };
-        
-        // 地図上の2点間のベクトル（緯度経度）
         const mapVector = {
-            lat: mapPoint2.lat - mapPoint1.lat,
-            lng: mapPoint2.lng - mapPoint1.lng
+            lat: params.mapPoint2.lat - params.mapOrigin.lat,
+            lng: params.mapPoint2.lng - params.mapOrigin.lng
         };
         
-        // 画像ベクトルの角度
         const imageAngle = Math.atan2(imageVector.y, imageVector.x);
-        
-        // 地図ベクトルの角度
         const mapAngle = Math.atan2(mapVector.lat, mapVector.lng);
+        const rotationRadians = mapAngle - imageAngle;
+        const rotationDegrees = rotationRadians * 180 / Math.PI;
         
-        // 回転角度（度数）
-        const rotationDegrees = (mapAngle - imageAngle) * 180 / Math.PI;
+        console.log('Rotation needed:', rotationDegrees, 'degrees');
         
-        console.log('Image overlay rotation:', rotationDegrees, 'degrees');
+        // 回転が小さい場合（5度未満）は回転なしで処理
+        if (Math.abs(rotationDegrees) < 5) {
+            console.log('Small rotation, using standard ImageOverlay');
+            
+            const overlay = L.imageOverlay(this.imageData.url, bounds, {
+                opacity: opacity,
+                interactive: false
+            }).addTo(this.map);
+            
+            overlay.setOpacity = function(newOpacity) {
+                const img = this.getElement();
+                if (img) {
+                    img.style.opacity = newOpacity;
+                }
+                this.options.opacity = newOpacity;
+            }.bind(overlay);
+            
+            return overlay;
+        }
         
-        // 標準的なLeaflet ImageOverlayを作成
-        const overlay = L.imageOverlay(this.imageData.url, bounds, {
-            opacity: opacity,
-            interactive: false
-        }).addTo(this.map);
+        // 回転が必要な場合は事前に画像を回転
+        console.log('Large rotation, pre-rotating image');
         
-        // オーバーレイが追加された後にCSS回転を適用
-        overlay.on('add', function() {
-            const img = this.getElement();
-            if (img) {
-                img.style.transformOrigin = 'center center';
-                img.style.transform = `rotate(${rotationDegrees}deg)`;
-                console.log('CSS rotation applied:', rotationDegrees, 'degrees');
-            }
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        return new Promise((resolve) => {
+            img.onload = () => {
+                // 元画像と同じサイズのキャンバスを作成（回転で切れないよう十分大きく）
+                const diagonal = Math.sqrt(img.width * img.width + img.height * img.height);
+                canvas.width = diagonal;
+                canvas.height = diagonal;
+                
+                // 中心で回転
+                ctx.translate(diagonal / 2, diagonal / 2);
+                ctx.rotate(rotationRadians);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                
+                // 回転済み画像でオーバーレイ作成
+                const rotatedImageUrl = canvas.toDataURL();
+                
+                // 回転後の画像に合わせて新しいboundsを計算
+                // 元の変換パラメータを使って回転後の基準点を計算
+                const imagePoint1 = params.imageOrigin;
+                const imagePoint2 = params.imagePoint2;
+                const mapPoint1 = params.mapOrigin;
+                const mapPoint2 = params.mapPoint2;
+                
+                // 回転後の基準点を計算（キャンバス中心基準）
+                const centerX = diagonal / 2;
+                const centerY = diagonal / 2;
+                
+                // 元画像の基準点を中心座標系に変換
+                const relX1 = imagePoint1.x - img.width / 2;
+                const relY1 = imagePoint1.y - img.height / 2;
+                const relX2 = imagePoint2.x - img.width / 2;
+                const relY2 = imagePoint2.y - img.height / 2;
+                
+                // 回転を適用
+                const cos = Math.cos(rotationRadians);
+                const sin = Math.sin(rotationRadians);
+                
+                const rotatedX1 = relX1 * cos - relY1 * sin + centerX;
+                const rotatedY1 = relX1 * sin + relY1 * cos + centerY;
+                const rotatedX2 = relX2 * cos - relY2 * sin + centerX;
+                const rotatedY2 = relX2 * sin + relY2 * cos + centerY;
+                
+                console.log('Rotated points:', {
+                    point1: { x: rotatedX1, y: rotatedY1 },
+                    point2: { x: rotatedX2, y: rotatedY2 }
+                });
+                
+                // 新しい変換パラメータを作成
+                const newImageVector = {
+                    x: rotatedX2 - rotatedX1,
+                    y: rotatedY2 - rotatedY1
+                };
+                
+                // スケールファクター（回転後も同じ）
+                const newImageDistance = Math.sqrt(newImageVector.x * newImageVector.x + newImageVector.y * newImageVector.y);
+                const mapDistance = Math.sqrt(mapVector.lat * mapVector.lat + mapVector.lng * mapVector.lng);
+                const scaleX = mapVector.lng / newImageVector.x;
+                const scaleY = mapVector.lat / newImageVector.y;
+                
+                // 回転後画像の4隅を変換
+                const transformPoint = (imageX, imageY) => {
+                    const relX = imageX - rotatedX1;
+                    const relY = imageY - rotatedY1;
+                    
+                    const lat = mapPoint1.lat + (relY * scaleY);
+                    const lng = mapPoint1.lng + (relX * scaleX);
+                    
+                    return [lat, lng];
+                };
+                
+                const newCorners = [
+                    transformPoint(0, 0), // 左上
+                    transformPoint(diagonal, 0), // 右上
+                    transformPoint(diagonal, diagonal), // 右下
+                    transformPoint(0, diagonal) // 左下
+                ];
+                
+                const newLats = newCorners.map(corner => corner[0]);
+                const newLngs = newCorners.map(corner => corner[1]);
+                
+                const newBounds = [
+                    [Math.min(...newLats), Math.min(...newLngs)], // 南西
+                    [Math.max(...newLats), Math.max(...newLngs)]  // 北東
+                ];
+                
+                console.log('New bounds for rotated image:', newBounds);
+                
+                const overlay = L.imageOverlay(rotatedImageUrl, newBounds, {
+                    opacity: opacity,
+                    interactive: false
+                }).addTo(this.map);
+                
+                overlay.setOpacity = function(newOpacity) {
+                    const img = this.getElement();
+                    if (img) {
+                        img.style.opacity = newOpacity;
+                    }
+                    this.options.opacity = newOpacity;
+                }.bind(overlay);
+                
+                resolve(overlay);
+            };
+            
+            img.src = this.imageData.url;
         });
-        
-        // カスタムsetOpacityメソッドを追加
-        overlay.setOpacity = function(newOpacity) {
-            const img = this.getElement();
-            if (img) {
-                img.style.opacity = newOpacity;
-            }
-            this.options.opacity = newOpacity;
-        }.bind(overlay);
-        
-        return overlay;
     }
     
     applyOverlay() {
@@ -637,7 +730,16 @@ export class OverlayManager {
         const opacity = parseFloat(document.getElementById('imageOpacity').value);
         
         // カスタム画像オーバーレイで正確な2点対応を実現
-        this.overlayLayer = this.create2PointImageOverlay(bounds, opacity);
+        const overlayResult = this.create2PointImageOverlay(bounds, opacity);
+        
+        // Promiseかどうかをチェック
+        if (overlayResult instanceof Promise) {
+            overlayResult.then((overlay) => {
+                this.overlayLayer = overlay;
+            });
+        } else {
+            this.overlayLayer = overlayResult;
+        }
         
         // 画像ウィンドウは閉じる
         if (this.imageWindow) {
