@@ -1,8 +1,10 @@
+import { CONFIG } from './config.js';
+
 // 入力履歴管理クラス
 export class InputHistoryManager {
-    constructor(maxHistory = 10) {
+    constructor(maxHistory = CONFIG.HISTORY.MAX_ENTRIES) {
         this.maxHistory = maxHistory;
-        this.storagePrefix = 'map2csv_input_';
+        this.storagePrefix = CONFIG.HISTORY.STORAGE_PREFIX;
         this.initializeHistory();
     }
     
@@ -64,6 +66,9 @@ export class InputHistoryManager {
         
         this.history[fieldId] = history;
         this.saveHistory(fieldId, history);
+        
+        // datalistを即座に更新
+        this.updateDatalist(fieldId);
     }
     
     // 特定フィールドの履歴を取得
@@ -75,6 +80,12 @@ export class InputHistoryManager {
     setupField(fieldId) {
         const field = document.getElementById(fieldId);
         if (!field) return;
+        
+        // 親要素が存在するかチェック
+        if (!field.parentNode) {
+            console.warn(`Field ${fieldId} has no parent node, skipping datalist setup`);
+            return;
+        }
         
         // datalistが既にある場合は削除
         const existingDatalist = document.getElementById(fieldId + '-datalist');
@@ -101,6 +112,11 @@ export class InputHistoryManager {
                 this.addToHistory(fieldId, field.value);
             }
         });
+        
+        // フォーカス時に最新の履歴を表示
+        field.addEventListener('focus', () => {
+            this.updateDatalist(fieldId);
+        });
     }
     
     // datalistの内容を更新
@@ -123,8 +139,33 @@ export class InputHistoryManager {
     // すべてのフィールドを初期化
     setupAllFields() {
         for (const fieldId in this.fields) {
-            this.setupField(fieldId);
+            try {
+                this.setupField(fieldId);
+            } catch (error) {
+                console.warn(`Failed to setup field ${fieldId}:`, error);
+            }
         }
+        
+        // 動的に追加される要素のために遅延初期化も実行
+        this.setupDelayedFields();
+    }
+    
+    // 動的に追加される要素のための遅延初期化
+    setupDelayedFields() {
+        // 1秒後に再度チェック（モーダルなどが表示された後）
+        setTimeout(() => {
+            for (const fieldId in this.fields) {
+                const field = document.getElementById(fieldId);
+                if (field && !field.hasAttribute('list')) {
+                    console.log(`Setting up delayed field: ${fieldId}`);
+                    try {
+                        this.setupField(fieldId);
+                    } catch (error) {
+                        console.warn(`Failed to setup delayed field ${fieldId}:`, error);
+                    }
+                }
+            }
+        }, 1000);
     }
     
     // 特定フィールドの履歴をクリア
@@ -139,5 +180,33 @@ export class InputHistoryManager {
         for (const fieldId in this.fields) {
             this.clearHistory(fieldId);
         }
+    }
+    
+    // 手動で特定フィールドの初期化を試行（外部から呼び出し可能）
+    initializeFieldIfNeeded(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (field && !field.hasAttribute('list')) {
+            console.log(`Manually initializing field: ${fieldId}`);
+            try {
+                this.setupField(fieldId);
+                return true;
+            } catch (error) {
+                console.warn(`Failed to manually initialize field ${fieldId}:`, error);
+                return false;
+            }
+        }
+        return false;
+    }
+    
+    // すべての未初期化フィールドを手動初期化
+    initializeAllFieldsIfNeeded() {
+        let initialized = 0;
+        for (const fieldId in this.fields) {
+            if (this.initializeFieldIfNeeded(fieldId)) {
+                initialized++;
+            }
+        }
+        console.log(`Manually initialized ${initialized} fields`);
+        return initialized;
     }
 }

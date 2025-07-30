@@ -1,10 +1,13 @@
+import { CONFIG } from './config.js';
+import { ErrorHandler } from './utils/error-handler.js';
+
 export class PinManager {
     constructor(options) {
         this.map = options.map;
         this.pinSection = options.pinSection;
         this.pinList = options.pinList;
         this.pinModal = options.pinModal;
-        this.pinDisplayNumberInput = document.getElementById('pinDisplayNumber');
+        this.pinDisplayNumberInput = ErrorHandler.requireElement('pinDisplayNumber');
         this.pinNumberInput = options.pinNumberInput;
         this.pinNameInput = options.pinNameInput;
         this.pinMemoInput = options.pinMemoInput;
@@ -15,6 +18,7 @@ export class PinManager {
         this.currentPin = null;
         this.enabled = false;
         this.pinIdCounter = 1;
+        this.inputHistoryManager = options.inputHistoryManager;
         
         this.setupEventHandlers();
     }
@@ -50,13 +54,13 @@ export class PinManager {
             }
         });
         
-        // プルダウンメニューに1-100の選択肢を追加
+        // プルダウンメニューに選択肢を追加
         this.initializePinNumberDropdown();
     }
     
     initializePinNumberDropdown() {
-        // 1から100までの選択肢を追加
-        for (let i = 1; i <= 100; i++) {
+        // 設定から最大番号を取得して選択肢を追加
+        for (let i = 1; i <= CONFIG.PINS.MAX_DISPLAY_NUMBER; i++) {
             const option = document.createElement('option');
             option.value = i.toString();
             option.textContent = i.toString();
@@ -114,7 +118,7 @@ export class PinManager {
             icon: L.divIcon({
                 className: 'custom-marker-with-number',
                 html: '<div class="pin-marker"></div>',
-                iconSize: [20, 20],
+                iconSize: CONFIG.UI.MARKER_SIZES.DEFAULT,
                 iconAnchor: [10, 10]
             }),
             draggable: true
@@ -162,12 +166,26 @@ export class PinManager {
         this.pinNameInput.value = pin.name || '';
         this.pinMemoInput.value = pin.memo || '';
         this.pinModal.style.display = 'flex';
+        
+        // モーダル表示時に入力履歴を初期化
+        if (this.inputHistoryManager) {
+            setTimeout(() => {
+                this.inputHistoryManager.initializeAllFieldsIfNeeded();
+            }, 100);
+        }
+        
         this.pinDisplayNumberInput.focus();
     }
     
     closeModal() {
         this.pinModal.style.display = 'none';
         this.currentPin = null;
+    }
+    
+    // 入力履歴マネージャーを設定（main.jsから呼び出される）
+    setInputHistoryManager(inputHistoryManager) {
+        this.inputHistoryManager = inputHistoryManager;
+        console.log('✅ PinManagerに入力履歴マネージャーが設定されました');
     }
     
     savePinInfo() {
@@ -187,7 +205,7 @@ export class PinManager {
         this.currentPin.marker.setIcon(L.divIcon({
             className: 'custom-marker-with-number',
             html: htmlContent,
-            iconSize: displayNumber ? [25, 25] : [20, 20],
+            iconSize: displayNumber ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT,
             iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
         }));
         
@@ -308,12 +326,12 @@ export class PinManager {
                 const pinMarkerDiv = markerElement.querySelector('.pin-marker');
                 if (pinMarkerDiv) {
                     if (highlight) {
-                        pinMarkerDiv.style.backgroundColor = '#f39c12';
+                        pinMarkerDiv.style.backgroundColor = CONFIG.PINS.DEFAULT_COLORS.HOVER;
                         pinMarkerDiv.style.transform = 'scale(1.2)';
                         pinMarkerDiv.style.transition = 'all 0.3s';
                         pinMarkerDiv.style.zIndex = '1000';
                     } else {
-                        pinMarkerDiv.style.backgroundColor = '#e74c3c';
+                        pinMarkerDiv.style.backgroundColor = CONFIG.PINS.DEFAULT_COLORS.DEFAULT;
                         pinMarkerDiv.style.transform = 'scale(1)';
                         pinMarkerDiv.style.zIndex = '';
                     }

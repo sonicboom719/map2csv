@@ -1,4 +1,7 @@
 import { SimpleDragResizeWindow } from './simple-drag-resize.js';
+import { CONFIG } from './config.js';
+import { CoordinateTransformer } from './utils/coordinate-transformer.js';
+import { ErrorHandler } from './utils/error-handler.js';
 
 export class OverlayManager {
     constructor(options) {
@@ -71,7 +74,8 @@ export class OverlayManager {
             </button>
         `;
         
-        document.querySelector('.map-container').appendChild(controlDiv);
+        const mapContainer = document.querySelector('.map-container') || document.body;
+        mapContainer.appendChild(controlDiv);
         
         // イベントリスナーを追加
         document.getElementById('imageVisibleToggle').addEventListener('change', (e) => {
@@ -97,6 +101,7 @@ export class OverlayManager {
     
     setupEventHandlers() {
         this.applyButton.addEventListener('click', () => {
+            console.log('🖱️ 位置合わせ実行ボタンがクリックされました');
             this.applyOverlay();
         });
         
@@ -261,10 +266,18 @@ export class OverlayManager {
         this.updatePointsDisplay();
         
         // 適用ボタンの状態を更新
+        console.log('🔄 ボタン状態更新:', {
+            imagePoints: this.imagePoints.length,
+            mapPoints: this.mapPoints.length,
+            shouldEnable: this.imagePoints.length === 2 && this.mapPoints.length === 2
+        });
+        
         if (this.imagePoints.length === 2 && this.mapPoints.length === 2) {
             this.applyButton.disabled = false;
+            console.log('✅ 位置合わせボタンが有効化されました');
         } else {
             this.applyButton.disabled = true;
+            console.log('⚠️ 位置合わせボタンが無効化されました');
         }
     }
     
@@ -369,7 +382,7 @@ export class OverlayManager {
             
             // ドラッグ可能なマーカーを作成
             const marker = L.circleMarker(latlng, {
-                radius: 12,
+                radius: CONFIG.UI.MARKER_SIZES.SELECTION_RADIUS,
                 fillColor: colors[index],
                 color: 'white',
                 weight: 3,
@@ -570,30 +583,19 @@ export class OverlayManager {
         
         console.log('Scale factor:', scale);
         
-        // 単純な線形変換（アスペクト比を保持）
-        // 画像の第1点を基準にして、第2点が一致するように配置
-        const scaleX = mapVector.lng / imageVector.x;
-        const scaleY = mapVector.lat / imageVector.y;
+        // 座標変換パラメータを計算
+        const transform = CoordinateTransformer.calculateTransform(
+            imagePoint1, imagePoint2, mapPoint1, mapPoint2
+        );
         
-        console.log('Scale factors:', { scaleX, scaleY });
-        
-        // 画像の4隅を線形変換で地図座標に変換
-        const transformPoint = (imageX, imageY) => {
-            const relX = imageX - imagePoint1.x;
-            const relY = imageY - imagePoint1.y;
-            
-            const lat = mapPoint1.lat + (relY * scaleY);
-            const lng = mapPoint1.lng + (relX * scaleX);
-            
-            return [lat, lng];
-        };
+        console.log('Scale factors:', { scaleX: transform.scaleX, scaleY: transform.scaleY });
         
         // 画像の4隅を変換
         const corners = [
-            transformPoint(0, 0), // 左上
-            transformPoint(imageWidth, 0), // 右上
-            transformPoint(imageWidth, imageHeight), // 右下
-            transformPoint(0, imageHeight) // 左下
+            CoordinateTransformer.transformPoint(0, 0, transform), // 左上
+            CoordinateTransformer.transformPoint(imageWidth, 0, transform), // 右上
+            CoordinateTransformer.transformPoint(imageWidth, imageHeight, transform), // 右下
+            CoordinateTransformer.transformPoint(0, imageHeight, transform) // 左下
         ];
         
         console.log('Transformed corners:', corners);
@@ -610,8 +612,8 @@ export class OverlayManager {
         console.log('Final bounds:', bounds);
         
         // 確認：変換された基準点が正しいかチェック
-        const transformedPoint1 = transformPoint(imagePoint1.x, imagePoint1.y);
-        const transformedPoint2 = transformPoint(imagePoint2.x, imagePoint2.y);
+        const transformedPoint1 = CoordinateTransformer.transformPoint(imagePoint1.x, imagePoint1.y, transform);
+        const transformedPoint2 = CoordinateTransformer.transformPoint(imagePoint2.x, imagePoint2.y, transform);
         console.log('=== 2点一致検証 ===');
         console.log('変換点1:', transformedPoint1, '期待値:', [mapPoint1.lat, mapPoint1.lng]);
         console.log('変換点2:', transformedPoint2, '期待値:', [mapPoint2.lat, mapPoint2.lng]);
@@ -796,7 +798,18 @@ export class OverlayManager {
     }
     
     applyOverlay() {
-        if (this.imagePoints.length !== 2 || this.mapPoints.length !== 2) return;
+        console.log('🔄 applyOverlay実行:', {
+            imagePoints: this.imagePoints.length,
+            mapPoints: this.mapPoints.length,
+            imagePointsData: this.imagePoints,
+            mapPointsData: this.mapPoints
+        });
+        
+        if (this.imagePoints.length !== 2 || this.mapPoints.length !== 2) {
+            console.warn('⚠️ 点の選択が不十分です。画像2点、地図2点が必要です。');
+            alert('画像上で2点、地図上で2点を選択してください。');
+            return;
+        }
         
         // コントロールパネルを表示
         document.getElementById('imageControls').style.display = 'block';

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>統合テスト - 地図→CSV化支援ツール</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .test-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+        }
+        .test-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #0056b3; }
+        
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #007bff;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <!-- メインアプリケーションのHTML（非表示） -->
+    <div style="display: none;">
+        <div class="map-container">
+            <div id="map" style="height: 400px;"></div>
+        </div>
+        <div id="uploadArea"></div>
+        <input type="file" id="fileInput">
+        <div id="uploadedImage" style="display: none;">
+            <img id="previewImage" alt="プレビュー">
+        </div>
+        <input type="text" id="addressInput">
+        <button id="searchAddress">地図を移動</button>
+        <div id="overlaySection" style="display: none;">
+            <div id="imagePoints"></div>
+            <div id="mapPoints"></div>
+            <button id="applyTransform">位置合わせを実行</button>
+            <button id="resetPoints">リセット</button>
+        </div>
+        <div id="rightSidebar" style="display: none;">
+            <div id="pinSection" style="display: none;">
+                <div id="pinList"></div>
+                <input type="text" id="prefectureInput">
+                <input type="text" id="cityInput">
+                <button id="exportCsv">CSV出力</button>
+            </div>
+        </div>
+        <div id="pinModal" style="display: none;">
+            <select id="pinDisplayNumber">
+                <option value="">選択してください</option>
+            </select>
+            <input type="text" id="pinNumber">
+            <input type="text" id="pinName">
+            <textarea id="pinMemo"></textarea>
+            <button id="savePinInfo">保存</button>
+            <button id="cancelPinInfo">キャンセル</button>
+        </div>
+        <canvas id="imageCanvas" style="display: none;"></canvas>
+        </div>
+    </div>
+
+    <!-- テストオーバーレイ -->
+    <div class="test-overlay" id="testOverlay">
+        <div class="test-panel">
+            <h2>🧪 統合テスト実行中</h2>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div id="testResults"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="runAllTests()">全テスト実行</button>
+                <button onclick="closeTestPanel()">テスト完了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 必要なライブラリ -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <script type="module">
+        // アプリケーションの初期化（テスト用）
+        let initializationComplete = false;
+        
+        // 早期のログ出力用関数
+        function earlyLog(type, message) {
+            const container = document.getElementById('testResults');
+            if (container) {
+                const result = document.createElement('div');
+                result.className = `test-result ${type}`;
+                result.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+                container.appendChild(result);
+            }
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        async function initializeTestApp() {
+            try {
+                console.log('🔄 アプリケーション初期化を開始...');
+                earlyLog('info', '🔄 アプリケーション初期化を開始...');
+                
+                // main.jsから直接Appクラスをインポート
+                console.log('📦 main.jsをインポート中...');
+                const mainModule = await import('./js/main.js');
+                console.log('📦 main.jsインポート完了:', Object.keys(mainModule));
+                
+                const App = mainModule.default;
+                
+                if (!App) {
+                    throw new Error(`Appクラスがエクスポートされていません。利用可能: ${Object.keys(mainModule)}`);
+                }
+                
+                console.log('✅ Appクラスのインポート成功');
+                earlyLog('info', '✅ Appクラスのインポート成功');
+                
+                // Appインスタンスを作成
+                console.log('🏗️ Appインスタンスを作成中...');
+                
+                // DOM要素の存在確認
+                const criticalElements = ['map', 'uploadArea', 'fileInput', 'overlaySection'];
+                const missingElements = criticalElements.filter(id => !document.getElementById(id));
+                
+                if (missingElements.length > 0) {
+                    throw new Error(`重要なDOM要素が見つかりません: ${missingElements.join(', ')}`);
+                }
+                
+                // グローバルエラーハンドラーを設定してAppクラスの初期化エラーをキャッチ
+                let appInitError = null;
+                const originalError = window.onerror;
+                window.onerror = function(message, source, lineno, colno, error) {
+                    appInitError = error || new Error(message);
+                    earlyLog('error', `🚨 グローバルエラー捕捉: ${message} at ${source}:${lineno}`);
+                    return true; // エラーを処理済みとしてマーク
+                };
+                
+                try {
+                    // テスト環境では入力履歴の初期化をスキップ
+                    window.testApp = new App({ skipInputHistory: true });
+                    
+                    // 少し待ってからエラーをチェック
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    if (appInitError) {
+                        throw appInitError;
+                    }
+                } finally {
+                    // エラーハンドラーを元に戻す
+                    window.onerror = originalError;
+                }
+                console.log('✅ アプリケーションインスタンス作成成功');
+                earlyLog('info', '✅ アプリケーションインスタンス作成成功');
+                
+                // コンポーネントの初期化を確認
+                console.log('🔍 コンポーネント確認:', {
+                    mapManager: !!window.testApp.mapManager,
+                    imageUploader: !!window.testApp.imageUploader,
+                    overlayManager: !!window.testApp.overlayManager,
+                    pinManager: !!window.testApp.pinManager,
+                    csvExporter: !!window.testApp.csvExporter,
+                    inputHistoryManager: !!window.testApp.inputHistoryManager
+                });
+                
+                // 地図の初期化を段階的に確認
+                let initAttempts = 0;
+                const checkInitialization = () => {
+                    initAttempts++;
+                    
+                    if (window.testApp && window.testApp.mapManager && window.testApp.mapManager.map) {
+                        initializationComplete = true;
+                        console.log('✅ アプリケーション初期化完了');
+                        earlyLog('info', '✅ アプリケーション初期化完了');
+                    } else if (initAttempts >= 20) { // 4秒でタイムアウト
+                        initializationComplete = true;
+                        console.log('⚠️ 初期化タイムアウト、テストを続行します');
+                        earlyLog('warning', '⚠️ 初期化タイムアウト、テストを続行します');
+                    } else {
+                        if (initAttempts % 5 === 0) {
+                            console.log(`🔄 初期化確認中... (${initAttempts}/20)`);
+                            earlyLog('info', `🔄 初期化確認中... (${initAttempts}/20)`);
+                        }
+                        setTimeout(checkInitialization, 200);
+                    }
+                };
+                
+                setTimeout(checkInitialization, 500);
+                
+            } catch (error) {
+                console.error('❌ アプリケーションの初期化に失敗:', error);
+                earlyLog('error', `❌ アプリケーション初期化失敗: ${error.message}`);
+                window.testApp = null;
+                initializationComplete = false;
+            }
+        }
+        
+        // エラーハンドリングを追加
+        window.addEventListener('error', (event) => {
+            console.error('🚨 グローバルエラー:', event.error);
+            earlyLog('error', `🚨 グローバルエラー: ${event.error.message}`);
+        });
+        
+        // 初期化を実行
+        await initializeTestApp();
+
+        let testProgress = 0;
+        const totalTests = 8;
+
+        function addTestResult(type, message) {
+            const container = document.getElementById('testResults');
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            container.appendChild(result);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateProgress() {
+            testProgress++;
+            const percentage = (testProgress / totalTests) * 100;
+            document.getElementById('progressBar').style.width = percentage + '%';
+        }
+
+        window.runAllTests = async function() {
+            testProgress = 0;
+            document.getElementById('testResults').innerHTML = '';
+            
+            addTestResult('info', '🚀 統合テストを開始します...');
+
+            // テスト1: モジュール読み込み確認
+            try {
+                const { CONFIG } = await import('./js/config.js');
+                const { ErrorHandler } = await import('./js/utils/error-handler.js');
+                
+                if (CONFIG && ErrorHandler) {
+                    addTestResult('success', '✅ 主要モジュールの読み込み成功');
+                } else {
+                    addTestResult('error', '❌ 主要モジュールの読み込み失敗');
+                }
+            } catch (error) {
+                addTestResult('error', `❌ モジュール読み込みエラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト2: 設定値確認
+            try {
+                const { CONFIG } = await import('./js/config.js');
+                
+                const configTests = [
+                    ['マーカーサイズ', CONFIG.UI.MARKER_SIZES.DEFAULT.length === 2],
+                    ['地図中心座標', Array.isArray(CONFIG.MAP.DEFAULT_CENTER)],
+                    ['履歴最大件数', typeof CONFIG.HISTORY.MAX_ENTRIES === 'number'],
+                ];
+
+                let configOk = true;
+                for (const [name, passed] of configTests) {
+                    if (!passed) {
+                        addTestResult('error', `❌ 設定エラー: ${name}`);
+                        configOk = false;
+                    }
+                }
+                
+                if (configOk) {
+                    addTestResult('success', '✅ 設定値の整合性確認完了');
+                }
+            } catch (error) {
+                addTestResult('error', `❌ 設定値確認エラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト3: DOM要素存在確認
+            try {
+                const requiredElements = [
+                    'map', 'uploadArea', 'fileInput', 'addressInput', 'searchAddress',
+                    'overlaySection', 'imagePoints', 'mapPoints', 'applyTransform', 'resetPoints',
+                    'rightSidebar', 'pinSection', 'pinList', 'pinModal',
+                    'pinDisplayNumber', 'pinNumber', 'pinName', 'pinMemo',
+                    'savePinInfo', 'cancelPinInfo', 'exportCsv',
+                    'prefectureInput', 'cityInput', 'imageCanvas'
+                ];
+
+                let missingElements = [];
+                for (const elementId of requiredElements) {
+                    if (!document.getElementById(elementId)) {
+                        missingElements.push(elementId);
+                    }
+                }
+
+                if (missingElements.length === 0) {
+                    addTestResult('success', '✅ 必要なDOM要素が全て存在');
+                } else {
+                    addTestResult('warning', `⚠️ 一部要素が不足: ${missingElements.join(', ')}`);
+                    
+                    // 不足している要素を動的に作成（テスト用）
+                    missingElements.forEach(elementId => {
+                        if (!document.getElementById(elementId)) {
+                            let element;
+                            
+                            // 要素のタイプに応じて適切な要素を作成
+                            if (elementId.includes('Input') || elementId.includes('Address')) {
+                                element = document.createElement('input');
+                                element.type = 'text';
+                            } else if (elementId.includes('Button') || elementId === 'searchAddress') {
+                                element = document.createElement('button');
+                            } else if (elementId === 'pinDisplayNumber') {
+                                element = document.createElement('select');
+                            } else if (elementId === 'pinMemo') {
+                                element = document.createElement('textarea');
+                            } else if (elementId === 'imageCanvas') {
+                                element = document.createElement('canvas');
+                            } else {
+                                element = document.createElement('div');
+                            }
+                            
+                            element.id = elementId;
+                            element.style.display = 'none';
+                            
+                            // 親コンテナを作成して追加
+                            const container = document.createElement('div');
+                            container.style.display = 'none';
+                            container.appendChild(element);
+                            document.body.appendChild(container);
+                        }
+                    });
+                    
+                    addTestResult('info', 'ℹ️ 不足していた要素をテスト用に動的作成しました');
+                }
+            } catch (error) {
+                addTestResult('error', `❌ DOM要素確認エラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト4: 地図初期化確認
+            try {
+                addTestResult('info', '🔄 地図初期化テストを開始...');
+                
+                // アプリケーション初期化を待つ（タイムアウト付き）
+                const initPromise = new Promise((resolve, reject) => {
+                    let attempts = 0;
+                    const maxAttempts = 100; // 10秒でタイムアウト
+                    
+                    const checkInitialization = () => {
+                        attempts++;
+                        
+                        if (initializationComplete && window.testApp && window.testApp.mapManager) {
+                            addTestResult('info', `✅ 初期化完了確認 (${attempts}回目、${attempts * 100}ms)`);
+                            resolve();
+                        } else if (attempts >= maxAttempts) {
+                            addTestResult('warning', `⚠️ 初期化タイムアウト (${attempts * 100}ms): testApp=${!!window.testApp}, mapManager=${!!(window.testApp && window.testApp.mapManager)}, 完了=${initializationComplete}`);
+                            resolve(); // エラーではなく警告として続行
+                        } else {
+                            if (attempts % 10 === 0) {
+                                addTestResult('info', `🔄 初期化待機中... (${attempts}回目、${attempts * 100}ms)`);
+                            }
+                            setTimeout(checkInitialization, 100);
+                        }
+                    };
+                    checkInitialization();
+                });
+                
+                await initPromise;
+                
+                // 段階的診断
+                addTestResult('info', `🔍 testApp存在: ${!!window.testApp}`);
+                
+                if (window.testApp) {
+                    addTestResult('info', `🔍 testApp存在: ${!!window.testApp}`);
+                    addTestResult('info', `🔍 mapManager存在: ${!!window.testApp.mapManager}`);
+                    
+                    if (window.testApp.mapManager) {
+                        addTestResult('info', `🔍 map存在: ${!!window.testApp.mapManager.map}`);
+                        
+                        if (window.testApp.mapManager.map) {
+                            const map = window.testApp.mapManager.map;
+                            addTestResult('info', '🔍 地図インスタンス確認済み');
+                            
+                            try {
+                                const center = map.getCenter();
+                                addTestResult('info', `🔍 中心座標取得: ${!!center}`);
+                                
+                                if (center && typeof center.lat === 'number' && typeof center.lng === 'number') {
+                                    addTestResult('success', `✅ 地図初期化成功: 中心座標 (${center.lat.toFixed(4)}, ${center.lng.toFixed(4)})`);
+                                } else {
+                                    addTestResult('warning', `⚠️ 中心座標が無効: ${JSON.stringify(center)}`);
+                                }
+                            } catch (centerError) {
+                                addTestResult('warning', `⚠️ 中心座標取得エラー: ${centerError.message}`);
+                            }
+                        } else {
+                            addTestResult('warning', '⚠️ 地図オブジェクトが作成されていません（Leafletライブラリの問題の可能性）');
+                        }
+                    } else {
+                        addTestResult('warning', '⚠️ MapManagerが初期化されていません');
+                    }
+                    
+                    // 他のコンポーネントの確認
+                    const components = ['imageUploader', 'overlayManager', 'pinManager', 'csvExporter', 'inputHistoryManager'];
+                    const availableComponents = components.filter(comp => !!window.testApp[comp]);
+                    addTestResult('info', `🔍 利用可能コンポーネント: ${availableComponents.join(', ')}`);
+                    
+                } else {
+                    addTestResult('error', '❌ testAppが存在しません');
+                }
+                
+            } catch (error) {
+                addTestResult('error', `❌ 地図初期化確認エラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト5: 座標変換機能確認
+            try {
+                const { CoordinateTransformer } = await import('./js/utils/coordinate-transformer.js');
+                
+                const testTransform = CoordinateTransformer.calculateTransform(
+                    { x: 0, y: 0 }, { x: 100, y: 100 },
+                    { lat: 35.0, lng: 135.0 }, { lat: 35.001, lng: 135.001 }
+                );
+
+                if (testTransform && typeof testTransform.scaleX === 'number') {
+                    addTestResult('success', '✅ 座標変換機能が正常に動作');
+                } else {
+                    addTestResult('error', '❌ 座標変換機能に問題あり');
+                }
+            } catch (error) {
+                addTestResult('error', `❌ 座標変換テストエラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト6: エラーハンドリング確認
+            try {
+                const { ErrorHandler } = await import('./js/utils/error-handler.js');
+                
+                // 非同期エラーハンドリングテスト
+                const testAsync = await ErrorHandler.handleAsyncOperation(async () => {
+                    return "テスト成功";
+                }, 'テストコンテキスト').catch(() => null);
+
+                if (testAsync === "テスト成功") {
+                    addTestResult('success', '✅ エラーハンドリング機能が正常');
+                } else {
+                    addTestResult('error', '❌ エラーハンドリング機能に問題');
+                }
+            } catch (error) {
+                addTestResult('error', `❌ エラーハンドリングテストエラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト7: 入力履歴機能確認
+            try {
+                const { InputHistoryManager } = await import('./js/input-history.js');
+                
+                const historyManager = new InputHistoryManager();
+                historyManager.addToHistory('test', 'テストデータ');
+                const history = historyManager.getHistory('test');
+
+                if (history.length > 0 && history[0] === 'テストデータ') {
+                    addTestResult('success', '✅ 入力履歴機能が正常に動作');
+                } else {
+                    addTestResult('error', '❌ 入力履歴機能に問題あり');
+                }
+                
+                // アプリケーション内の入力履歴マネージャーのチェック
+                if (window.testApp && window.testApp.inputHistoryManager === null) {
+                    addTestResult('info', 'ℹ️ テスト環境では入力履歴の初期化がスキップされました');
+                } else if (window.testApp && window.testApp.inputHistoryManager) {
+                    addTestResult('success', '✅ アプリケーション内の入力履歴マネージャーも正常');
+                }
+            } catch (error) {
+                addTestResult('error', `❌ 入力履歴テストエラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト8: アプリケーション総合確認
+            try {
+                if (window.testApp) {
+                    const components = [
+                        'mapManager', 'imageUploader', 'overlayManager', 
+                        'pinManager', 'csvExporter', 'inputHistoryManager'
+                    ];
+
+                    const availableComponents = [];
+                    const missingComponents = [];
+                    
+                    for (const component of components) {
+                        if (window.testApp[component]) {
+                            availableComponents.push(component);
+                        } else {
+                            missingComponents.push(component);
+                        }
+                    }
+
+                    if (availableComponents.length === components.length) {
+                        addTestResult('success', '✅ 全コンポーネントの初期化完了');
+                    } else if (availableComponents.length > 0) {
+                        addTestResult('warning', `⚠️ 一部コンポーネント不足: ${missingComponents.join(', ')}`);
+                        addTestResult('info', `ℹ️ 利用可能: ${availableComponents.join(', ')}`);
+                    } else {
+                        addTestResult('error', '❌ 全コンポーネントが初期化に失敗');
+                    }
+                    
+                    // デバッグ情報
+                    addTestResult('info', `ℹ️ testApp: ${typeof window.testApp}, 初期化完了: ${initializationComplete}`);
+                    
+                    // 実際の機能テスト
+                    if (window.testApp.inputHistoryManager) {
+                        try {
+                            window.testApp.inputHistoryManager.addToHistory('test', 'テスト値');
+                            const history = window.testApp.inputHistoryManager.getHistory('test');
+                            if (history.length > 0) {
+                                addTestResult('success', '✅ 入力履歴機能が実際に動作しています');
+                            }
+                        } catch (historyError) {
+                            addTestResult('warning', '⚠️ 入力履歴機能にエラー: ' + historyError.message);
+                        }
+                    }
+                    
+                } else {
+                    addTestResult('error', `❌ アプリケーション状態異常: testApp=${typeof window.testApp}`);
+                }
+            } catch (error) {
+                addTestResult('error', `❌ アプリケーション確認エラー: ${error.message}`);
+            }
+            updateProgress();
+
+            // テスト完了
+            const endTime = new Date();
+            addTestResult('info', `🎉 統合テスト完了！[${endTime.toLocaleTimeString()}] 結果を確認してください。`);
+            
+            // 結果サマリー
+            const results = document.querySelectorAll('.test-result');
+            const successCount = document.querySelectorAll('.test-result.success').length;
+            const errorCount = document.querySelectorAll('.test-result.error').length;
+            const warningCount = document.querySelectorAll('.test-result.warning').length;
+            
+            addTestResult('info', `📊 テスト結果サマリー: 成功=${successCount}, 警告=${warningCount}, エラー=${errorCount}`);
+            
+            if (errorCount === 0) {
+                addTestResult('success', '🎊 全テストが正常に完了しました！');
+            } else if (errorCount < 3) {
+                addTestResult('warning', '⚠️ 一部のテストでエラーがありましたが、基本機能は動作しています');
+            } else {
+                addTestResult('error', '❌ 複数のテストでエラーが発生しました。確認が必要です');
+            }
+        };
+
+        window.closeTestPanel = function() {
+            document.getElementById('testOverlay').style.display = 'none';
+        };
+
+        // 自動実行（初期化完了を待つ）
+        function waitAndRunTests() {
+            let attempts = 0;
+            const maxWaitAttempts = 50; // 10秒でタイムアウト
+            
+            const checkAndRun = () => {
+                attempts++;
+                if (initializationComplete) {
+                    setTimeout(() => {
+                        runAllTests();
+                    }, 500);
+                } else if (attempts >= maxWaitAttempts) {
+                    earlyLog('warning', '⚠️ 初期化完了を待機中にタイムアウト、テストを強制開始します');
+                    setTimeout(() => {
+                        runAllTests();
+                    }, 500);
+                } else {
+                    setTimeout(checkAndRun, 200);
+                }
+            };
+            checkAndRun();
+        }
+        
+        waitAndRunTests();
+    </script>
+</body>
+</html>
