@@ -26,37 +26,47 @@ export class CsvExporter {
         
         // CSVデータを作成
         const csvData = [
-            ['都道府県', '市区町村', '緯度', '経度', '掲示場番号', 'メモ'], // ヘッダー
+            ['prefecture', 'city', 'number', 'address', 'name', 'lat', 'long', 'note'], // ヘッダー
             ...pins.map(pin => [
                 prefecture,
                 city,
+                pin.number || '',
+                '', // address is always empty
+                pin.name || '',
                 pin.latitude.toFixed(6),
                 pin.longitude.toFixed(6),
-                pin.number || '',
                 pin.memo || ''
             ])
         ];
         
-        // PapaParseを使用してCSVを生成
+        // PapaParseを使用してCSVを生成（引用符なし）
         const csv = Papa.unparse(csvData, {
-            quotes: true,
+            quotes: false,
             delimiter: ',',
             header: false
         });
         
-        // BOMを追加（Excelで日本語が文字化けしないように）
-        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-        const blob = new Blob([bom, csv], { type: 'text/csv;charset=utf-8' });
+        // UTF-8（BOMなし）で出力
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
         
         // ダウンロードリンクを作成
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         
-        // ファイル名に日時を含める
+        // ファイル名を {city}_normalized_yyyymmddhhmmss.csv 形式にする
         const now = new Date();
-        const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        a.download = `pins_${dateStr}.csv`;
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}${hours}${minutes}${seconds}`;
+        
+        // cityが空の場合は "unknown" を使用
+        const cityName = city || 'unknown';
+        a.download = `${cityName}_normalized_${dateStr}.csv`;
         
         // ダウンロードを実行
         document.body.appendChild(a);

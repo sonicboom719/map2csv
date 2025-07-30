@@ -47,6 +47,7 @@ class App {
             pinList: document.getElementById('pinList'),
             pinModal: document.getElementById('pinModal'),
             pinNumberInput: document.getElementById('pinNumber'),
+            pinNameInput: document.getElementById('pinName'),
             pinMemoInput: document.getElementById('pinMemo'),
             saveButton: document.getElementById('savePinInfo'),
             cancelButton: document.getElementById('cancelPinInfo')

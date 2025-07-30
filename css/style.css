@@ -300,6 +300,18 @@ button {
 
 .modal-buttons button {
     flex: 1;
+    padding: 10px 20px !important;
+    min-height: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-buttons .btn-primary,
+.modal-buttons .btn-secondary {
+    margin-top: 0 !important;
+    width: auto !important;
 }
 
 /* インフォメッセージ */

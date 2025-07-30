@@ -5,6 +5,7 @@ export class PinManager {
         this.pinList = options.pinList;
         this.pinModal = options.pinModal;
         this.pinNumberInput = options.pinNumberInput;
+        this.pinNameInput = options.pinNameInput;
         this.pinMemoInput = options.pinMemoInput;
         this.saveButton = options.saveButton;
         this.cancelButton = options.cancelButton;
@@ -45,16 +46,35 @@ export class PinManager {
     enable() {
         this.enabled = true;
         
-        // 地図クリックイベントを設定
-        this.map.on('click', (e) => {
+        // マウスカーソルを十字に変更
+        const mapContainer = this.map.getContainer();
+        mapContainer.style.cursor = 'crosshair';
+        
+        // 既存のイベントリスナーを削除してから設定
+        this.map.off('click', this.mapClickHandler);
+        
+        // イベントハンドラーを保存
+        this.mapClickHandler = (e) => {
             if (this.enabled) {
                 this.addPin(e.latlng);
             }
-        });
+        };
+        
+        // 地図クリックイベントを設定
+        this.map.on('click', this.mapClickHandler);
     }
     
     disable() {
         this.enabled = false;
+        
+        // マウスカーソルを元に戻す
+        const mapContainer = this.map.getContainer();
+        mapContainer.style.cursor = '';
+        
+        // イベントリスナーを削除
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
+        }
     }
     
     addPin(latlng) {
@@ -62,6 +82,7 @@ export class PinManager {
             id: this.pinIdCounter++,
             latlng: latlng,
             number: '',
+            name: '',
             memo: '',
             marker: null
         };
@@ -70,16 +91,28 @@ export class PinManager {
         const marker = L.marker(latlng, {
             icon: L.divIcon({
                 className: 'custom-marker',
-                html: `<div class="custom-marker"></div>`,
+                html: '',
                 iconSize: [20, 20],
                 iconAnchor: [10, 10]
-            })
+            }),
+            draggable: true
         }).addTo(this.map);
         
         // マーカークリックでモーダルを開く
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             this.openModal(pin);
+        });
+        
+        // ドラッグイベント
+        marker.on('dragstart', () => {
+            this.highlightPinInList(pin.id, true);
+        });
+        
+        marker.on('dragend', (e) => {
+            pin.latlng = e.target.getLatLng();
+            this.highlightPinInList(pin.id, false);
+            this.updatePinList();
         });
         
         pin.marker = marker;
@@ -94,6 +127,7 @@ export class PinManager {
     openModal(pin) {
         this.currentPin = pin;
         this.pinNumberInput.value = pin.number || '';
+        this.pinNameInput.value = pin.name || '';
         this.pinMemoInput.value = pin.memo || '';
         this.pinModal.style.display = 'flex';
         this.pinNumberInput.focus();
@@ -108,12 +142,13 @@ export class PinManager {
         if (!this.currentPin) return;
         
         this.currentPin.number = this.pinNumberInput.value.trim();
+        this.currentPin.name = this.pinNameInput.value.trim();
         this.currentPin.memo = this.pinMemoInput.value.trim();
         
         // マーカーの表示を更新（常に赤●のまま）
         this.currentPin.marker.setIcon(L.divIcon({
             className: 'custom-marker',
-            html: `<div class="custom-marker"></div>`,
+            html: '',
             iconSize: [20, 20],
             iconAnchor: [10, 10]
         }));
@@ -194,8 +229,23 @@ export class PinManager {
             div.appendChild(infoDiv);
             div.appendChild(actionsDiv);
             
+            // ピンIDを要素に設定
+            div.setAttribute('data-pin-id', pin.id);
+            
             this.pinList.appendChild(div);
         });
+    }
+    
+    highlightPinInList(pinId, highlight) {
+        const pinElement = this.pinList.querySelector(`[data-pin-id="${pinId}"]`);
+        if (pinElement) {
+            if (highlight) {
+                pinElement.style.backgroundColor = '#ffe4b5';
+                pinElement.style.transition = 'background-color 0.3s';
+            } else {
+                pinElement.style.backgroundColor = '';
+            }
+        }
     }
     
     getPins() {
@@ -203,6 +253,7 @@ export class PinManager {
             latitude: pin.latlng.lat,
             longitude: pin.latlng.lng,
             number: pin.number,
+            name: pin.name,
             memo: pin.memo
         }));
     }
