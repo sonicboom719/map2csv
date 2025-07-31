@@ -7,6 +7,8 @@ export class ConcatCsv {
         this.mergedData = [];
         this.originalMergedData = []; // 元の順序を保持
         this.sortType = 'none'; // 'none', 'string', 'numeric'
+        this.globalPrefecture = null; // 全ファイル共通のprefecture
+        this.globalCity = null; // 全ファイル共通のcity
     }
     
     /**
@@ -29,12 +31,66 @@ export class ConcatCsv {
         console.log('Parse errors:', parsed.errors);
         
         if (parsed.errors.length > 0) {
-            throw new Error(`正規化CSVパースエラー: ${file.name}`);
+            // 最初のエラーのみを表示
+            const firstError = parsed.errors[0];
+            
+            // エラータイプを日本語に変換
+            let errorMessage = '';
+            switch (firstError.type) {
+                case 'FieldMismatch':
+                    if (firstError.code === 'TooManyFields') {
+                        errorMessage = `列数が多すぎます: ${firstError.message || ''}`;
+                    } else if (firstError.code === 'TooFewFields') {
+                        errorMessage = `列数が少なすぎます: ${firstError.message || ''}`;
+                    } else {
+                        errorMessage = `列数が一致しません: ${firstError.message || ''}`;
+                    }
+                    break;
+                case 'Quotes':
+                    errorMessage = `引用符のエラー: ${firstError.message || ''}`;
+                    break;
+                default:
+                    errorMessage = firstError.message || 'パースエラー';
+            }
+            
+            // 行番号の修正
+            // PapaParseのrowはデータ行のインデックス（0ベース）
+            // CSVファイルの実際の行番号 = row + 2（ヘッダー行 + 1）
+            console.log('PapaParse error row:', firstError.row);
+            const displayRow = firstError.row !== undefined ? firstError.row + 2 : '不明';
+            
+            throw new Error(`${file.name} - ${errorMessage} (行: ${displayRow})`);
+        }
+        
+        // ヘッダー行のバリデーション
+        if (parsed.data.length > 0) {
+            // 必須列の定義（prefecture,city,number,address,name,lat,long）
+            const requiredColumns = ['prefecture', 'city', 'number', 'address', 'name', 'lat', 'long'];
+            const optionalColumns = ['note']; // 任意列
+            const headers = Object.keys(parsed.data[0]);
+            
+            // 必須列の確認
+            const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+            
+            if (missingColumns.length > 0) {
+                throw new Error(`${file.name} - 必須列が不足しています: ${missingColumns.join(', ')}`);
+            }
+            
+            // 許可されていない列の確認
+            const allowedColumns = [...requiredColumns, ...optionalColumns];
+            const unexpectedColumns = headers.filter(col => !allowedColumns.includes(col));
+            
+            if (unexpectedColumns.length > 0) {
+                throw new Error(`${file.name} - 許可されていない列があります: ${unexpectedColumns.join(', ')}`);
+            }
+        } else {
+            throw new Error(`${file.name} - データが空です`);
         }
         
         this.uploadedFiles.push({
             name: file.name,
-            data: parsed.data
+            data: parsed.data,
+            errors: [] // エラー情報を保持（将来の拡張用）
         });
         
         console.log('Files uploaded count:', this.uploadedFiles.length);
@@ -47,6 +103,11 @@ export class ConcatCsv {
      */
     removeFile(index) {
         this.uploadedFiles.splice(index, 1);
+        // 全ファイルが削除された場合はグローバル値もリセット
+        if (this.uploadedFiles.length === 0) {
+            this.globalPrefecture = null;
+            this.globalCity = null;
+        }
         this.mergeFiles();
     }
     
@@ -57,6 +118,8 @@ export class ConcatCsv {
         this.uploadedFiles = [];
         this.mergedData = [];
         this.originalMergedData = [];
+        this.globalPrefecture = null;
+        this.globalCity = null;
     }
     
     /**
@@ -71,38 +134,169 @@ export class ConcatCsv {
         
         for (const file of this.uploadedFiles) {
             console.log('Processing file:', file.name, 'with', file.data.length, 'rows');
-            for (const row of file.data) {
+            let fileHasError = false;
+            let filePrefecture = null;
+            let fileCity = null;
+            let fileRows = []; // このファイルの有効な行データを一時保存
+            
+            // まず全行をバリデーション
+            for (let rowIndex = 0; rowIndex < file.data.length; rowIndex++) {
+                const row = file.data[rowIndex];
                 console.log('Processing row:', row);
                 
-                // 必須列の存在確認
-                if (!row.hasOwnProperty('number') || 
-                    !row.hasOwnProperty('name') || 
-                    !row.hasOwnProperty('lat') || 
-                    !row.hasOwnProperty('long')) {
-                    console.log('Skipping row due to missing required columns:', row);
-                    continue;
+                // 空文字列チェック（address, name, note以外は空文字列NG）
+                const emptyFields = [];
+                
+                // prefecture, city, number, lat, longのみチェック
+                if (!row.prefecture || row.prefecture.trim() === '') emptyFields.push('prefecture');
+                if (!row.city || row.city.trim() === '') emptyFields.push('city');
+                if (!row.number || row.number.trim() === '') emptyFields.push('number');
+                if (!row.lat || row.lat.toString().trim() === '') emptyFields.push('lat');
+                if (!row.long || row.long.toString().trim() === '') emptyFields.push('long');
+                
+                // address, name, noteは空文字列でもOKなので、明示的にチェックしない
+                console.log(`Row ${rowIndex + 2} - address: "${row.address}", name: "${row.name}", note: "${row.note}" (これらは空でもOK)`);
+                
+                if (emptyFields.length > 0) {
+                    file.errors = [{
+                        row: rowIndex + 2,
+                        message: `必須フィールドが空です: ${emptyFields.join(', ')}`
+                    }];
+                    console.log(`File ${file.name} has empty required fields at row ${rowIndex + 2}, skipping entire file`);
+                    fileHasError = true;
+                    break;
                 }
                 
-                // city列から市区町村名を取得（最初に見つかった値を使用）
-                if (!this.cityName && row.city) {
-                    this.cityName = row.city;
-                    console.log('City name detected:', this.cityName);
+                // lat/longの数値型と範囲チェック
+                const lat = parseFloat(row.lat);
+                const long = parseFloat(row.long);
+                
+                // lat の数値型チェック
+                if (isNaN(lat)) {
+                    file.errors = [{
+                        row: rowIndex + 2,
+                        message: `latは実数である必要があります (値: "${row.lat}")`
+                    }];
+                    fileHasError = true;
+                    break;
                 }
                 
-                // 全8列のデータを設定
-                const mergedRow = {
-                    prefecture: row.prefecture || '',
-                    city: row.city || '',
-                    number: row.number || '',
-                    address: row.address || '',
-                    name: row.name || '',
-                    lat: row.lat || '',
-                    long: row.long || '',
-                    note: row.note || ''
-                };
+                // long の数値型チェック
+                if (isNaN(long)) {
+                    file.errors = [{
+                        row: rowIndex + 2,
+                        message: `longは実数である必要があります (値: "${row.long}")`
+                    }];
+                    fileHasError = true;
+                    break;
+                }
                 
-                this.mergedData.push(mergedRow);
-                console.log('Added merged row:', mergedRow);
+                // lat の範囲チェック (20 < lat < 50)
+                if (lat <= 20 || lat >= 50) {
+                    file.errors = [{
+                        row: rowIndex + 2,
+                        message: `latは20から50の範囲内である必要があります (値: ${lat})`
+                    }];
+                    fileHasError = true;
+                    break;
+                }
+                
+                // long の範囲チェック (110 < long < 160)
+                if (long <= 110 || long >= 160) {
+                    file.errors = [{
+                        row: rowIndex + 2,
+                        message: `longは110から160の範囲内である必要があります (値: ${long})`
+                    }];
+                    fileHasError = true;
+                    break;
+                }
+                
+                // prefecture/cityの一貫性チェック
+                if (rowIndex === 0) {
+                    // 最初の行の値を基準として設定
+                    filePrefecture = row.prefecture || '';
+                    fileCity = row.city || '';
+                    
+                    // グローバルな値との比較（最初のファイルの場合は設定、以降は比較）
+                    if (this.globalPrefecture === null) {
+                        this.globalPrefecture = filePrefecture;
+                        this.globalCity = fileCity;
+                    } else {
+                        // 既存のグローバル値と比較
+                        if (filePrefecture !== this.globalPrefecture) {
+                            file.errors = [{
+                                row: rowIndex + 2,
+                                message: `prefectureが他のファイルと一致しません (期待値: "${this.globalPrefecture}", 実際: "${filePrefecture}")`
+                            }];
+                            fileHasError = true;
+                            break;
+                        }
+                        if (fileCity !== this.globalCity) {
+                            file.errors = [{
+                                row: rowIndex + 2,
+                                message: `cityが他のファイルと一致しません (期待値: "${this.globalCity}", 実際: "${fileCity}")`
+                            }];
+                            fileHasError = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // 2行目以降は最初の行と比較
+                    const currentPrefecture = row.prefecture || '';
+                    const currentCity = row.city || '';
+                    
+                    if (currentPrefecture !== filePrefecture) {
+                        file.errors = [{
+                            row: rowIndex + 2,
+                            message: `prefectureが一致しません (期待値: "${filePrefecture}", 実際: "${currentPrefecture}")`
+                        }];
+                        fileHasError = true;
+                        break;
+                    }
+                    if (currentCity !== fileCity) {
+                        file.errors = [{
+                            row: rowIndex + 2,
+                            message: `cityが一致しません (期待値: "${fileCity}", 実際: "${currentCity}")`
+                        }];
+                        fileHasError = true;
+                        break;
+                    }
+                }
+                
+                // バリデーション通過した行を一時保存
+                fileRows.push(row);
+            }
+            
+            // エラーがなかった場合のみデータをマージ
+            if (!fileHasError) {
+                console.log(`File ${file.name} passed validation, adding ${fileRows.length} rows to merged data`);
+                
+                for (const row of fileRows) {
+                    // city列から市区町村名を取得（最初に見つかった値を使用）
+                    if (!this.cityName && row.city) {
+                        this.cityName = row.city;
+                        console.log('City name detected:', this.cityName);
+                    }
+                    
+                    // 全8列のデータを設定
+                    const mergedRow = {
+                        prefecture: row.prefecture || '',
+                        city: row.city || '',
+                        number: row.number || '',
+                        address: row.address || '',
+                        name: row.name || '',
+                        lat: row.lat || '',
+                        long: row.long || '',
+                        note: row.note || ''
+                    };
+                    
+                    this.mergedData.push(mergedRow);
+                    console.log('Added merged row:', mergedRow);
+                }
+            } else {
+                // エラーがあったファイルの情報をコンソールに出力
+                console.warn(`ファイル "${file.name}" でエラーが検出されました:`, file.errors[0]);
+                console.warn(`ファイル "${file.name}" の全${fileRows.length}行のデータはインポートされませんでした`);
             }
         }
         

@@ -53,14 +53,31 @@
             log.textContent += message + '\n';
         }
         
-        // テスト用のCSVデータ（最新仕様：8列対応）
+        // テスト用のCSVデータ（最新仕様：8列対応、prefecture/city統一）
         const csvData1 = `prefecture,city,number,address,name,lat,long,note
 東京都,渋谷区,1,渋谷区神南,テスト場所1,35.6812,139.7671,備考1
-東京都,新宿区,2,新宿区歌舞伎町,テスト場所2,35.6822,139.7681,備考2`;
+東京都,渋谷区,2,新宿区歌舞伎町,テスト場所2,35.6822,139.7681,備考2`;
 
         const csvData2 = `prefecture,city,number,address,name,lat,long,note
-東京都,港区,3,港区六本木,テスト場所3,35.6832,139.7691,備考3
+東京都,渋谷区,3,港区六本木,テスト場所3,35.6832,139.7691,備考3
 東京都,渋谷区,A-1,渋谷区道玄坂,重複場所,35.6842,139.7702,重複備考`;
+
+        // バリデーションエラー用テストデータ
+        const invalidHeaderData = `prefecture,city,number,address,name,lat,long,invalidColumn
+東京都,渋谷区,1,渋谷区神南,テスト場所1,35.6812,139.7671,備考1`;
+
+        const emptyRequiredFieldData = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,,渋谷区神南,テスト場所1,35.6812,139.7671,備考1`;
+
+        const invalidLatLongData = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,1,渋谷区神南,テスト場所1,abc,139.7671,備考1`;
+
+        const outOfRangeLatLongData = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,1,渋谷区神南,テスト場所1,60.0,139.7671,備考1`;
+
+        const inconsistentPrefectureData = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,1,渋谷区神南,テスト場所1,35.6812,139.7671,備考1
+大阪府,渋谷区,2,新宿区歌舞伎町,テスト場所2,35.6822,139.7681,備考2`;
 
         // 基本機能のテスト
         async function testBasicFunctionality() {
@@ -314,11 +331,121 @@
             }
         }
 
+        // バリデーションテスト
+        async function testValidation() {
+            addLog('=== バリデーションテスト ===');
+            
+            // 1. 無効なヘッダーテスト
+            try {
+                const concat = new ConcatCsv();
+                const file = new File([invalidHeaderData], 'invalid_header.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                addResult('無効ヘッダーテスト', false, '例外が発生しませんでした');
+            } catch (error) {
+                if (error.message.includes('許可されていない列があります')) {
+                    addResult('無効ヘッダーテスト', true);
+                    addLog('期待通りのエラー: ' + error.message);
+                } else {
+                    addResult('無効ヘッダーテスト', false, '予期しないエラー: ' + error.message);
+                }
+            }
+            
+            // 2. 必須フィールド空テスト
+            try {
+                const concat = new ConcatCsv();
+                const file = new File([emptyRequiredFieldData], 'empty_required.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                
+                // ファイルは追加されるがデータはマージされない
+                const mergedData = concat.getMergedData();
+                if (mergedData.length === 0) {
+                    addResult('必須フィールド空テスト', true);
+                    addLog('期待通り: エラーファイルのデータはマージされませんでした');
+                } else {
+                    addResult('必須フィールド空テスト', false, 'エラーファイルのデータがマージされました');
+                }
+            } catch (error) {
+                addResult('必須フィールド空テスト', false, '予期しないエラー: ' + error.message);
+            }
+            
+            // 3. 無効なlat/longテスト
+            try {
+                const concat = new ConcatCsv();
+                const file = new File([invalidLatLongData], 'invalid_latlong.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                
+                const mergedData = concat.getMergedData();
+                if (mergedData.length === 0) {
+                    addResult('無効lat/longテスト', true);
+                    addLog('期待通り: 無効なlat/longファイルのデータはマージされませんでした');
+                } else {
+                    addResult('無効lat/longテスト', false, '無効なlat/longファイルのデータがマージされました');
+                }
+            } catch (error) {
+                addResult('無効lat/longテスト', false, '予期しないエラー: ' + error.message);
+            }
+            
+            // 4. 範囲外lat/longテスト
+            try {
+                const concat = new ConcatCsv();
+                const file = new File([outOfRangeLatLongData], 'outofrange_latlong.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                
+                const mergedData = concat.getMergedData();
+                if (mergedData.length === 0) {
+                    addResult('範囲外lat/longテスト', true);
+                    addLog('期待通り: 範囲外lat/longファイルのデータはマージされませんでした');
+                } else {
+                    addResult('範囲外lat/longテスト', false, '範囲外lat/longファイルのデータがマージされました');
+                }
+            } catch (error) {
+                addResult('範囲外lat/longテスト', false, '予期しないエラー: ' + error.message);
+            }
+            
+            // 5. prefecture不一致テスト
+            try {
+                const concat = new ConcatCsv();
+                const file = new File([inconsistentPrefectureData], 'inconsistent_prefecture.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                
+                const mergedData = concat.getMergedData();
+                if (mergedData.length === 0) {
+                    addResult('prefecture不一致テスト', true);
+                    addLog('期待通り: prefecture不一致ファイルのデータはマージされませんでした');
+                } else {
+                    addResult('prefecture不一致テスト', false, 'prefecture不一致ファイルのデータがマージされました');
+                }
+            } catch (error) {
+                addResult('prefecture不一致テスト', false, '予期しないエラー: ' + error.message);
+            }
+            
+            // 6. 空文字列許可テスト（address, name, note）
+            try {
+                const allowedEmptyData = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,1,,,35.6812,139.7671,
+東京都,渋谷区,2,渋谷区神南,,35.6822,139.7681,備考2`;
+                
+                const concat = new ConcatCsv();
+                const file = new File([allowedEmptyData], 'allowed_empty.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                
+                const mergedData = concat.getMergedData();
+                if (mergedData.length === 2) {
+                    addResult('空文字列許可テスト', true);
+                    addLog('期待通り: address/name/noteの空文字列は許可されました');
+                } else {
+                    addResult('空文字列許可テスト', false, 'address/name/noteの空文字列が拒否されました');
+                }
+            } catch (error) {
+                addResult('空文字列許可テスト', false, '予期しないエラー: ' + error.message);
+            }
+        }
+
         // すべてのテストを実行
         window.runAllTests = async function() {
             results.innerHTML = '';
             log.textContent = '';
-            addLog('CSV結合ツール 拡張テスト開始\n');
+            addLog('CSV結合ツール 拡張テスト開始（最新バリデーション仕様対応）\n');
             
             try {
                 await testBasicFunctionality();
@@ -328,6 +455,7 @@
                 await testCsvExport();
                 await testPreviewFunctionality();
                 await testCityNameDetection();
+                await testValidation();
                 
                 addLog('\n🎉 すべてのテストが成功しました！');
             } catch (error) {

@@ -278,21 +278,41 @@ extractNumbers(str) {
 
 ### 技術仕様
 
-**必須カラム検証**:
-- `number`, `name`, `lat`, `long`の4列が必須
-- 不足している行は自動的にスキップ
+**ヘッダー行バリデーション**:
+- 必須列: `prefecture`, `city`, `number`, `address`, `name`, `lat`, `long`
+- 任意列: `note`
+- 許可されていない列がある場合はエラー
+
+**データバリデーション**（ファイル単位、最初のエラーで処理中断）:
+1. **空文字列チェック**:
+   - 必須フィールド: `prefecture`, `city`, `number`, `lat`, `long`
+   - 空文字列許可: `address`, `name`, `note`
+
+2. **prefecture/cityの一貫性チェック**:
+   - ファイル内の全行で同じ値であること
+   - 複数ファイル間でも同じ値であること
+
+3. **lat/longの数値・範囲チェック**:
+   - 実数型であること
+   - lat: 20 < lat < 50（日本の緯度範囲）
+   - long: 110 < long < 160（日本の経度範囲）
+
+**エラー処理**:
+- 1つでもエラーがあるファイルは全行をインポート拒否
+- エラーメッセージは日本語で表示
+- 行番号は実際のCSVファイルの行番号で表示
 
 **データ変換**:
 ```javascript
-// 入力CSV（lat/long） → 出力CSV（latitude/longitude）
+// 最新の8列構造（lat/long → lat/long のまま）
 const mergedRow = {
     prefecture: row.prefecture || '',
     city: row.city || '',
     number: row.number || '',
     address: row.address || '',
     name: row.name || '',
-    latitude: row.lat || '',      // lat → latitude
-    longitude: row.long || '',    // long → longitude
+    lat: row.lat || '',
+    long: row.long || '',
     note: row.note || ''
 };
 ```
@@ -302,13 +322,31 @@ const mergedRow = {
 
 ### テスト仕様
 
-**テストファイル**: `tests/concat-csv-test.html`
-- 基本機能テスト（8列データ構造、必須カラム）
+**テストファイル**: `tests/concat-csv-test.html`（最新バリデーション仕様対応）
+
+**基本機能テスト**:
+- 8列データ構造テスト（prefecture,city,number,address,name,lat,long,note）
+- 必須カラム存在確認
 - マージ機能テスト（複数ファイル、市区町村名検出）
-- ソート機能テスト（address+number 2段組ソート）
+
+**ソート機能テスト**:
+- address+number 2段組ソート
 - addressソート詳細テスト（「*区」混在データ）
+- 文字列ソート・数値ソート・ソートなしの3パターン
+
+**バリデーションテスト**（最新追加）:
+- **ヘッダーバリデーション**: 無効な列名の検出
+- **必須フィールド空チェック**: prefecture,city,number,lat,longの空文字列検出
+- **lat/long数値チェック**: 非数値データの検出
+- **lat/long範囲チェック**: 日本の座標範囲外データの検出
+- **prefecture/city一貫性チェック**: ファイル内・ファイル間の不一致検出
+- **空文字列許可チェック**: address,name,noteの空文字列許可確認
+- **エラーファイル全行拒否**: 1つでもエラーがあるファイルは全データ拒否
+
+**出力・UI テスト**:
 - CSVエクスポートテスト（8列ヘッダー確認）
-- プレビュー機能テスト（HTML生成、ヘッダー確認）
+- プレビュー機能テスト（HTML生成、全8列表示確認）
+- 市区町村名検出テスト
 
 ## 今後の拡張ポイント
 
