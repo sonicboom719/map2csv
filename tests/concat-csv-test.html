@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV結合ツール 拡張テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>CSV結合ツール 拡張テスト（最新仕様対応）</h1>
+    
+    <button onclick="runAllTests()">全テスト実行</button>
+    <div id="results"></div>
+    <div id="log" class="log"></div>
+    
+    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+    <script type="module">
+        import { ConcatCsv } from '../js/concat-csv.js';
+        
+        const results = document.getElementById('results');
+        const log = document.getElementById('log');
+        
+        function addResult(name, passed, error = '') {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            div.textContent = `${passed ? '✓' : '✗'} ${name}${error ? ': ' + error : ''}`;
+            results.appendChild(div);
+        }
+        
+        function addLog(message) {
+            log.textContent += message + '\n';
+        }
+        
+        // テスト用のCSVデータ（最新仕様：8列対応）
+        const csvData1 = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,1,渋谷区神南,テスト場所1,35.6812,139.7671,備考1
+東京都,新宿区,2,新宿区歌舞伎町,テスト場所2,35.6822,139.7681,備考2`;
+
+        const csvData2 = `prefecture,city,number,address,name,lat,long,note
+東京都,港区,3,港区六本木,テスト場所3,35.6832,139.7691,備考3
+東京都,渋谷区,A-1,渋谷区道玄坂,重複場所,35.6842,139.7702,重複備考`;
+
+        // 基本機能のテスト
+        async function testBasicFunctionality() {
+            addLog('=== 基本機能テスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                // ファイル1を追加
+                const file1 = new File([csvData1], 'test1.csv', { type: 'text/csv' });
+                await concat.addFile(file1);
+                
+                const mergedData = concat.getMergedData();
+                addLog('ファイル1追加後のデータ数: ' + mergedData.length);
+                
+                // データ数の確認
+                if (mergedData.length !== 2) {
+                    throw new Error(`データ数が不正: 期待値2, 実際${mergedData.length}`);
+                }
+                
+                // 必須列の確認（最新仕様：lat, long）
+                const firstRow = mergedData[0];
+                const requiredFields = ['number', 'name', 'lat', 'long'];
+                for (const field of requiredFields) {
+                    if (!firstRow.hasOwnProperty(field)) {
+                        throw new Error(`必須フィールド${field}が存在しません`);
+                    }
+                }
+                
+                // 8列データ構造の確認
+                const expectedFields = ['prefecture', 'city', 'number', 'address', 'name', 'lat', 'long', 'note'];
+                for (const field of expectedFields) {
+                    if (!firstRow.hasOwnProperty(field)) {
+                        throw new Error(`期待フィールド${field}が存在しません`);
+                    }
+                }
+                
+                addResult('基本機能テスト', true);
+            } catch (error) {
+                addResult('基本機能テスト', false, error.message);
+            }
+        }
+
+        // マージ機能のテスト
+        async function testMergeFunctionality() {
+            addLog('=== マージ機能テスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                const file1 = new File([csvData1], 'test1.csv', { type: 'text/csv' });
+                const file2 = new File([csvData2], 'test2.csv', { type: 'text/csv' });
+                
+                await concat.addFile(file1);
+                await concat.addFile(file2);
+                
+                const mergedData = concat.getMergedData();
+                addLog('マージ後のデータ数: ' + mergedData.length);
+                
+                if (mergedData.length !== 4) {
+                    throw new Error(`マージ後のデータ数が不正: 期待値4, 実際${mergedData.length}`);
+                }
+                
+                // 市区町村名の検出確認
+                const cityName = concat.getCityName();
+                if (!cityName) {
+                    throw new Error('市区町村名が検出されていません');
+                }
+                addLog('検出された市区町村名: ' + cityName);
+                
+                addResult('マージ機能テスト', true);
+            } catch (error) {
+                addResult('マージ機能テスト', false, error.message);
+            }
+        }
+
+        // ソート機能のテスト
+        async function testSortFunctionality() {
+            addLog('=== ソート機能テスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                const file1 = new File([csvData1], 'test1.csv', { type: 'text/csv' });
+                const file2 = new File([csvData2], 'test2.csv', { type: 'text/csv' });
+                
+                await concat.addFile(file1);
+                await concat.addFile(file2);
+                
+                // 文字列ソートのテスト（address第1キー + number第2キー）
+                concat.setSortType('string');
+                let sortedData = concat.getMergedData();
+                addLog('文字列ソート結果（address→number）:');
+                sortedData.forEach((row, i) => {
+                    addLog(`  ${i+1}: ${row.address} : ${row.number}`);
+                });
+                
+                // 数値ソートのテスト（address第1キー + number第2キー）
+                concat.setSortType('numeric');
+                sortedData = concat.getMergedData();
+                addLog('数値ソート結果（address→number）:');
+                sortedData.forEach((row, i) => {
+                    addLog(`  ${i+1}: ${row.address} : ${row.number}`);
+                });
+                
+                // ソートなしのテスト
+                concat.setSortType('none');
+                sortedData = concat.getMergedData();
+                addLog('ソートなし結果: ' + sortedData.map(d => d.number).join(', '));
+                
+                addResult('ソート機能テスト', true);
+            } catch (error) {
+                addResult('ソート機能テスト', false, error.message);
+            }
+        }
+
+        // addressソート機能の詳細テスト
+        async function testAddressSortLogic() {
+            addLog('=== addressソート機能テスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                // 「*区」混在データのテスト
+                const mixedAddressData = `prefecture,city,number,address,name,lat,long,note
+東京都,渋谷区,1,渋谷区神南,場所1,35.6812,139.7671,備考1
+東京都,新宿区,2,新宿区歌舞伎町,場所2,35.6822,139.7681,備考2
+東京都,港区,3,港区六本木,場所3,35.6832,139.7691,備考3
+東京都,千代田区,4,東京都千代田区丸の内,場所4,35.6842,139.7702,備考4`;
+                
+                const file = new File([mixedAddressData], 'mixed_address.csv', { type: 'text/csv' });
+                await concat.addFile(file);
+                
+                concat.setSortType('string');
+                const sortedData = concat.getMergedData();
+                
+                addLog('addressソート結果:');
+                sortedData.forEach((row, index) => {
+                    addLog(`  ${index + 1}: ${row.address} (${row.name})`);
+                });
+                
+                // compareAddress関数の動作確認
+                const testCases = [
+                    ['渋谷区神南', '新宿区歌舞伎町'],
+                    ['港区六本木', '東京都千代田区丸の内'],
+                ];
+                
+                testCases.forEach(([a, b]) => {
+                    const result = concat.compareAddress(a, b);
+                    addLog(`compareAddress("${a}", "${b}") = ${result}`);
+                });
+                
+                addResult('addressソート機能テスト', true);
+            } catch (error) {
+                addResult('addressソート機能テスト', false, error.message);
+            }
+        }
+
+        // CSVエクスポートのテスト
+        async function testCsvExport() {
+            addLog('=== CSVエクスポートテスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                const file1 = new File([csvData1], 'test1.csv', { type: 'text/csv' });
+                await concat.addFile(file1);
+                
+                // CSVエクスポート
+                const csvOutput = concat.exportToCsv();
+                addLog('エクスポートされたCSV:');
+                addLog(csvOutput.substring(0, 200) + '...');
+                
+                // ヘッダーの確認（8列対応）
+                const lines = csvOutput.split('\n');
+                const header = lines[0];
+                const expectedHeader = 'prefecture,city,number,address,name,lat,long,note';
+                
+                if (header !== expectedHeader) {
+                    throw new Error(`ヘッダーが不正: 期待値${expectedHeader}, 実際${header}`);
+                }
+                
+                addResult('CSVエクスポートテスト', true);
+            } catch (error) {
+                addResult('CSVエクスポートテスト', false, error.message);
+            }
+        }
+
+        // プレビュー機能のテスト
+        async function testPreviewFunctionality() {
+            addLog('=== プレビュー機能テスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                // データなしの場合
+                let previewHtml = concat.generatePreviewTable();
+                addLog('データなし時のプレビュー長: ' + previewHtml.length);
+                
+                // データありの場合
+                const file1 = new File([csvData1], 'test1.csv', { type: 'text/csv' });
+                await concat.addFile(file1);
+                
+                previewHtml = concat.generatePreviewTable();
+                addLog('データあり時のプレビュー長: ' + previewHtml.length);
+                
+                // HTMLにtableタグが含まれているか確認
+                if (!previewHtml.includes('<table')) {
+                    throw new Error('プレビューHTMLにtableタグが含まれていません');
+                }
+                
+                // 8列のヘッダーが含まれているか確認
+                const expectedHeaders = ['prefecture', 'city', 'number', 'address', 'name', 'lat', 'long', 'note'];
+                for (const header of expectedHeaders) {
+                    if (!previewHtml.includes(`>${header}<`)) {
+                        throw new Error(`プレビューHTMLに${header}ヘッダーが含まれていません`);
+                    }
+                }
+                
+                addResult('プレビュー機能テスト', true);
+            } catch (error) {
+                addResult('プレビュー機能テスト', false, error.message);
+            }
+        }
+
+        // 市区町村名検出のテスト
+        async function testCityNameDetection() {
+            addLog('=== 市区町村名検出テスト ===');
+            
+            try {
+                const concat = new ConcatCsv();
+                
+                const file1 = new File([csvData1], 'test1.csv', { type: 'text/csv' });
+                await concat.addFile(file1);
+                
+                const cityName = concat.getCityName();
+                if (!cityName) {
+                    throw new Error('市区町村名が検出されていません');
+                }
+                
+                addLog('検出された市区町村名: ' + cityName);
+                
+                // 最初に見つかった市区町村名（渋谷区）が検出されることを確認
+                if (cityName !== '渋谷区') {
+                    throw new Error(`期待された市区町村名と異なります: 期待値渋谷区, 実際${cityName}`);
+                }
+                
+                addResult('市区町村名検出テスト', true);
+            } catch (error) {
+                addResult('市区町村名検出テスト', false, error.message);
+            }
+        }
+
+        // すべてのテストを実行
+        window.runAllTests = async function() {
+            results.innerHTML = '';
+            log.textContent = '';
+            addLog('CSV結合ツール 拡張テスト開始\n');
+            
+            try {
+                await testBasicFunctionality();
+                await testMergeFunctionality();
+                await testSortFunctionality();
+                await testAddressSortLogic();
+                await testCsvExport();
+                await testPreviewFunctionality();
+                await testCityNameDetection();
+                
+                addLog('\n🎉 すべてのテストが成功しました！');
+            } catch (error) {
+                addLog('\n❌ テストが失敗しました: ' + error.message);
+                console.error(error);
+            }
+        };
+        
+        // ページ読み込み時に自動実行
+        window.addEventListener('load', () => {
+            runAllTests();
+        });
+    </script>
+</body>
+</html>

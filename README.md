@@ -65,6 +65,38 @@
    - 「正規化CSVダウンロード」ボタンをクリック
    - ファイル名：`{市区町村名}_normalized_yyyymmddhhmmss.csv`
 
+## 🔗 CSV結合ツール
+
+複数の正規化CSVファイルを結合・マージする専用ツールです。
+
+### アクセス方法
+- メインツールの左下「→ CSV結合ツールへ」をクリック
+- または右サイドバーのリンクから直接アクセス
+
+### 使い方
+
+1. **CSVファイルアップロード**
+   - 複数の正規化CSVファイルをドラッグ&ドロップまたは選択
+   - ファイル一覧で追加されたファイルを確認
+
+2. **ソート設定**
+   - **なし**: 元の順序を維持
+   - **numberの辞書順**: 住所→番号（文字列）でソート
+   - **numberの数値の昇順**: 住所→番号（数値）でソート
+
+3. **プレビュー確認**
+   - 結合されたデータを8列（prefecture, city, number, address, name, lat, long, note）で表示
+   - 件数表示で総データ数を確認
+
+4. **CSV出力**
+   - 市区町村名が自動検出されファイル名に反映
+   - 統合されたCSVファイルをダウンロード
+
+### 高度なソート機能
+
+- **addressソート**: 住所が「*区」で終わる場合は区名部分を、それ以外は住所全体をソートキーとして使用
+- **numberソート**: 「A-1-2」のような複雑なパターンも数値部分を正しく認識
+
 ## 💡 便利な機能
 
 ### 画像表示コントロール
@@ -117,24 +149,22 @@ prefecture,city,number,address,name,lat,long,note
 ```
 map2csv/
 ├── index.html                   # メインページ
+├── concat_csv.html              # CSV結合ツール
 ├── css/style.css               # スタイルシート
 ├── js/
 │   ├── main.js                 # アプリケーション制御
+│   ├── concat-csv.js           # CSV結合機能
 │   ├── map.js                  # 地図管理
 │   ├── uploader.js             # ファイルアップロード
-│   ├── overlay-manager.js      # 画像オーバーレイ管理
+│   ├── overlay-simple-clean.js # 画像オーバーレイ管理
 │   ├── simple-drag-resize.js   # ウィンドウ管理
 │   ├── pins.js                 # ピン管理
-│   ├── export.js               # CSV出力
-│   ├── input-history.js        # 入力履歴管理
-│   ├── config.js               # アプリケーション設定
-│   └── utils/
-│       ├── coordinate-transformer.js  # 座標変換ユーティリティ
-│       └── error-handler.js           # エラーハンドリング
+│   └── export.js               # CSV出力
 ├── tests/
+│   ├── concat-csv-test.html    # CSV結合ツールのテスト
 │   ├── integration-test.html   # 統合テスト
 │   ├── unit-tests.html         # ユニットテスト
-│   └── test-framework.js       # テストフレームワーク
+│   └── simple-test.js          # テストフレームワーク
 └── CLAUDE.md                   # 技術仕様書
 ```
 

@@ -199,6 +199,117 @@ div.addEventListener('mouseout', () => this.highlightPinOnMap(pin.id, false));
 - メモ: 改行文字自動削除（掲示情報の補足）
 - ファイルアップロード: MIMEタイプ検証
 
+## CSV結合ツール (concat_csv.html)
+
+### 概要
+複数の正規化CSVファイルを結合し、統一されたフォーマットで出力するツール。メインツールで生成された複数のCSVファイルを効率的にマージできます。
+
+### アーキテクチャ
+
+#### 8. concat-csv.js - ConcatCsv
+**役割**: CSV結合、ソート、エクスポート機能の提供
+
+**データ構造**（8列対応）:
+```javascript
+const csvRow = {
+    prefecture: '東京都',        // 都道府県
+    city: '渋谷区',             // 市区町村
+    number: 'A-1',              // 掲示場番号
+    address: '渋谷区神南',       // 住所
+    name: '場所名',             // 掲示場名称
+    lat: '35.6812',             // 緯度
+    long: '139.7671',           // 経度
+    note: '備考情報'            // 備考
+};
+```
+
+**主要メソッド**:
+- `addFile(file)`: CSVファイルの追加とパース
+- `setSortType(type)`: ソートタイプの設定（'none', 'string', 'numeric'）
+- `compareAddress(a, b)`: addressの条件付き比較
+- `exportToCsv()`: 結合データのCSV出力
+- `generatePreviewTable()`: プレビューHTML生成
+
+#### ソート機能の詳細実装
+
+**2段組ソート**:
+1. **第1キー**: addressの条件付きソート
+   - 「*区」で終わる場合: 「*区」部分をキーとして使用
+   - それ以外の場合: address全体をキーとして使用
+2. **第2キー**: numberのソート（文字列または数値）
+
+```javascript
+compareAddress(addressA, addressB) {
+    // 個別に「*区」パターンを判定
+    const kuMatchA = addressA.match(/(.*区)/);
+    const sortKeyA = kuMatchA ? kuMatchA[1] : addressA;
+    
+    const kuMatchB = addressB.match(/(.*区)/);
+    const sortKeyB = kuMatchB ? kuMatchB[1] : addressB;
+    
+    return sortKeyA.localeCompare(sortKeyB);
+}
+```
+
+**数値ソートアルゴリズム**:
+```javascript
+extractNumbers(str) {
+    const matches = str.match(/\d+/g);
+    return matches ? matches.map(n => parseInt(n, 10)) : [];
+}
+```
+
+#### UI仕様
+
+**レイアウト**: 1:2の2カラム構成
+- **左カラム**: ファイルアップロード（ドラッグ&ドロップ対応）
+- **右カラム**: ソート設定、プレビュー、エクスポート
+
+**プレビュー機能**:
+- 全8列の表示（prefecture, city, number, address, name, lat, long, note）
+- 件数表示（「3. プレビュー (123件)」形式）
+- 横スクロール対応（`overflow: auto`, `white-space: nowrap`）
+- 最大高さ40vh制限
+
+**エクスポート機能**:
+- city列からの市区町村名自動検出
+- ファイル名形式: `{cityName}_normalized.csv`
+- UTF-8エンコーディング
+
+### 技術仕様
+
+**必須カラム検証**:
+- `number`, `name`, `lat`, `long`の4列が必須
+- 不足している行は自動的にスキップ
+
+**データ変換**:
+```javascript
+// 入力CSV（lat/long） → 出力CSV（latitude/longitude）
+const mergedRow = {
+    prefecture: row.prefecture || '',
+    city: row.city || '',
+    number: row.number || '',
+    address: row.address || '',
+    name: row.name || '',
+    latitude: row.lat || '',      // lat → latitude
+    longitude: row.long || '',    // long → longitude
+    note: row.note || ''
+};
+```
+
+**依存ライブラリ**:
+- PapaParser 5.4.1: CSV解析とエクスポート
+
+### テスト仕様
+
+**テストファイル**: `tests/concat-csv-test.html`
+- 基本機能テスト（8列データ構造、必須カラム）
+- マージ機能テスト（複数ファイル、市区町村名検出）
+- ソート機能テスト（address+number 2段組ソート）
+- addressソート詳細テスト（「*区」混在データ）
+- CSVエクスポートテスト（8列ヘッダー確認）
+- プレビュー機能テスト（HTML生成、ヘッダー確認）
+
 ## 今後の拡張ポイント
 
 1. **データ永続化**: LocalStorageまたはIndexedDBによる掲示場情報の保存
@@ -206,6 +317,7 @@ div.addEventListener('mouseout', () => this.highlightPinOnMap(pin.id, false));
 3. **エクスポート形式**: GeoJSON、KML形式での掲示場データ出力
 4. **画像形式**: WebP、HEIC対応による掲示場マップの多様化
 5. **オフライン対応**: Service Workerによる掲示場管理のオフライン機能
+6. **CSV結合拡張**: フィルタリング機能、重複除去オプション
 
 ## 開発・デバッグ情報
 

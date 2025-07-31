@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>CSV結合ツール - 地図→CSV化支援ツール</title>
+	<link rel="stylesheet" href="css/style.css">
+	<style>
+		body {
+			min-height: 100vh;
+			overflow-y: auto;
+		}
+		
+		.merge-container {
+			max-width: 1600px;
+			margin: 0 auto;
+			padding: 20px;
+			min-height: 100vh;
+		}
+		
+		.main-content {
+			display: flex;
+			gap: 20px;
+			min-height: calc(100vh - 200px);
+		}
+		
+		.left-column {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+		
+		.right-column {
+			flex: 2;
+			min-width: 0;
+			display: flex;
+			flex-direction: column;
+		}
+		
+		.right-column .merge-section:nth-child(2) {
+			display: flex;
+			flex-direction: column;
+		}
+		
+		.right-column .merge-section:nth-child(2) .preview-area {
+			max-height: 40vh;
+		}
+		
+		.merge-header {
+			text-align: center;
+			margin-bottom: 30px;
+		}
+		
+		.merge-section {
+			background: white;
+			padding: 20px;
+			margin-bottom: 20px;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		
+		
+		.file-upload-area {
+			border: 2px dashed #3498db;
+			border-radius: 8px;
+			padding: 40px 20px;
+			text-align: center;
+			cursor: pointer;
+			transition: all 0.3s;
+			background-color: #f8f9fa;
+			margin-bottom: 20px;
+		}
+		
+		.file-upload-area:hover {
+			background-color: #e3f2fd;
+			border-color: #2196f3;
+		}
+		
+		.file-upload-area.dragover {
+			background-color: #e3f2fd;
+			border-color: #2196f3;
+		}
+		
+		.file-list {
+			margin-bottom: 20px;
+		}
+		
+		.file-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px;
+			background: #f8f9fa;
+			margin-bottom: 8px;
+			border-radius: 4px;
+		}
+		
+		.file-item button {
+			padding: 4px 8px;
+			font-size: 12px;
+			background-color: #e74c3c;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+		
+		.file-item button:hover {
+			background-color: #c0392b;
+		}
+		
+		.sort-controls {
+			margin-bottom: 20px;
+			display: flex;
+			align-items: center;
+			gap: 20px;
+		}
+		
+		.sort-controls label {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+		
+		.preview-area {
+			overflow: auto;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			padding: 10px;
+			background: #f8f9fa;
+		}
+		
+		.preview-area table {
+			min-width: max-content;
+			white-space: nowrap;
+		}
+		
+		.preview-area th,
+		.preview-area td {
+			white-space: nowrap;
+			min-width: 100px;
+		}
+		
+		.export-controls {
+			display: flex;
+			gap: 10px;
+			align-items: flex-end;
+		}
+		
+		.export-controls input {
+			flex: 1;
+		}
+		
+		.export-controls button {
+			width: auto;
+			padding: 10px 30px;
+		}
+		
+		.help-text {
+			font-size: 12px;
+			color: #666;
+			margin-top: 5px;
+		}
+	</style>
+</head>
+<body>
+	<div class="merge-container">
+		<div class="merge-header">
+			<h1>CSV結合ツール</h1>
+			<p>複数のCSVファイルを結合し、ソートして正規化されたCSVを出力します</p>
+			<p><a href="index.html">← メインツールに戻る</a></p>
+		</div>
+		
+		<div class="main-content">
+			<!-- 左カラム: ファイルアップロードセクション -->
+			<div class="left-column">
+				<div class="merge-section">
+					<h2>1. CSVをアップロード</h2>
+					<div class="file-upload-area" id="csvUploadArea">
+						<p>CSVファイルをドラッグ＆ドロップ<br>または<br>CLICKして選択</p>
+						<p class="help-text">複数ファイルを一度に選択できます</p>
+						<input type="file" id="csvFileInput" accept=".csv" multiple style="display: none;">
+					</div>
+					
+					<div id="fileList" class="file-list"></div>
+				</div>
+			</div>
+			
+			<!-- 右カラム: その他のセクション -->
+			<div class="right-column">
+				<!-- ソート設定セクション -->
+				<div class="merge-section">
+					<h2>2. ソート設定</h2>
+					<div class="sort-controls">
+						<label>
+							<input type="radio" name="sortType" value="none" checked>
+							<span>なし</span>
+						</label>
+						<label>
+							<input type="radio" name="sortType" value="string">
+							<span>numberの辞書順</span>
+						</label>
+						<label>
+							<input type="radio" name="sortType" value="numeric">
+							<span>numberの数値の昇順</span>
+						</label>
+					</div>
+					<p class="help-text">
+						※「numberの数値の昇順」は、"A-1-2"のような形式で数値部分（1, 2）を優先的にソートします。addressの先頭が"*区"の場合はそれを第1キーにソートします。
+					</p>
+				</div>
+				
+				<!-- プレビューセクション -->
+				<div class="merge-section">
+					<h2 id="previewTitle">3. プレビュー</h2>
+					<div id="previewArea" class="preview-area">
+						<p style="text-align: center; color: #999;">正規化CSVファイルをアップロードしてください</p>
+					</div>
+				</div>
+				
+				<!-- エクスポートセクション -->
+				<div class="merge-section">
+					<h2>4. エクスポート</h2>
+					<div class="export-controls">
+						<div style="flex: 1;">
+							<label>検出された市区町村名:</label>
+							<div id="detectedCityName" style="padding: 10px; background: #f8f9fa; border-radius: 4px; margin-top: 5px;">
+								<span id="cityNameDisplay" style="font-weight: bold; color: #2c3e50;">未検出</span>
+								<span id="cityNameInfo" style="font-size: 12px; color: #666; margin-left: 10px;"></span>
+							</div>
+						</div>
+						<button id="downloadCsv" class="btn-primary" disabled>CSVダウンロード</button>
+					</div>
+					<p class="help-text">※ CSVファイルのcity列から自動的に市区町村名を取得します</p>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Scripts -->
+	<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+	<script type="module">
+		import { ConcatCsv } from './js/concat-csv.js';
+		
+		class ConcatCsvApp {
+			constructor() {
+				this.concat = new ConcatCsv();
+				this.setupUI();
+			}
+			
+			setupUI() {
+				// ファイルアップロード
+				const uploadArea = document.getElementById('csvUploadArea');
+				const fileInput = document.getElementById('csvFileInput');
+				
+				uploadArea.addEventListener('click', () => fileInput.click());
+				
+				uploadArea.addEventListener('dragover', (e) => {
+					e.preventDefault();
+					uploadArea.classList.add('dragover');
+				});
+				
+				uploadArea.addEventListener('dragleave', () => {
+					uploadArea.classList.remove('dragover');
+				});
+				
+				uploadArea.addEventListener('drop', async (e) => {
+					e.preventDefault();
+					uploadArea.classList.remove('dragover');
+					
+					const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+					for (const file of files) {
+						await this.addFile(file);
+					}
+				});
+				
+				fileInput.addEventListener('change', async (e) => {
+					const files = Array.from(e.target.files).filter(f => f.name.endsWith('.csv'));
+					console.log('Selected files:', files);
+					for (const file of files) {
+						await this.addFile(file);
+					}
+					fileInput.value = '';
+				});
+				
+				// ソート設定
+				document.querySelectorAll('input[name="sortType"]').forEach(radio => {
+					radio.addEventListener('change', (e) => {
+						this.concat.setSortType(e.target.value);
+						this.updatePreview();
+					});
+				});
+				
+				// ダウンロードボタン
+				const downloadBtn = document.getElementById('downloadCsv');
+				
+				downloadBtn.addEventListener('click', () => {
+					this.concat.downloadCsv();
+				});
+			}
+			
+			async addFile(file) {
+				try {
+					console.log('Adding file:', file.name);
+					await this.concat.addFile(file);
+					console.log('File added successfully, merged data length:', this.concat.getMergedData().length);
+					this.updateFileList();
+					this.updatePreview();
+					this.updateDownloadButton();
+				} catch (error) {
+					console.error('File add error:', error);
+					alert(`ファイルの読み込みに失敗しました: ${error.message}`);
+				}
+			}
+			
+			updateFileList() {
+				const fileList = document.getElementById('fileList');
+				fileList.innerHTML = '';
+				
+				this.concat.uploadedFiles.forEach((file, index) => {
+					const div = document.createElement('div');
+					div.className = 'file-item';
+					div.innerHTML = `
+						<span>${file.name} (${file.data.length}行)</span>
+						<button onclick="window.concatCsvApp.removeFile(${index})">削除</button>
+					`;
+					fileList.appendChild(div);
+				});
+			}
+			
+			removeFile(index) {
+				this.concat.removeFile(index);
+				this.updateFileList();
+				this.updatePreview();
+				this.updateDownloadButton();
+			}
+			
+			updatePreview() {
+				console.log('Updating preview, data length:', this.concat.getMergedData().length);
+				const previewArea = document.getElementById('previewArea');
+				const previewTitle = document.getElementById('previewTitle');
+				const dataLength = this.concat.getMergedData().length;
+				
+				// タイトルにデータ件数を表示
+				if (dataLength > 0) {
+					previewTitle.textContent = `3. プレビュー (${dataLength}件)`;
+				} else {
+					previewTitle.textContent = '3. プレビュー';
+				}
+				
+				const previewHtml = this.concat.generatePreviewTable();
+				console.log('Generated preview HTML length:', previewHtml.length);
+				previewArea.innerHTML = previewHtml;
+			}
+			
+			updateDownloadButton() {
+				const downloadBtn = document.getElementById('downloadCsv');
+				const cityName = this.concat.getCityName();
+				const hasData = this.concat.getMergedData().length > 0;
+				
+				// ダウンロードボタンの有効/無効を設定
+				downloadBtn.disabled = !hasData;
+				
+				// 市区町村名の表示を更新
+				const cityDisplay = document.getElementById('cityNameDisplay');
+				const cityInfo = document.getElementById('cityNameInfo');
+				
+				if (hasData) {
+					if (cityName) {
+						cityDisplay.textContent = cityName;
+						cityDisplay.style.color = '#27ae60';
+						cityInfo.textContent = '✓ city列から取得';
+						cityInfo.style.color = '#27ae60';
+					} else {
+						cityDisplay.textContent = '未検出';
+						cityDisplay.style.color = '#e74c3c';
+						cityInfo.textContent = '⚠ city列が見つかりません（"output"として保存されます）';
+						cityInfo.style.color = '#e74c3c';
+					}
+				} else {
+					cityDisplay.textContent = '未検出';
+					cityDisplay.style.color = '#666';
+					cityInfo.textContent = '';
+				}
+			}
+		}
+		
+		// グローバルに公開（削除ボタンのonclickで使用）
+		window.concatCsvApp = new ConcatCsvApp();
+	</script>
+</body>
+</html>
