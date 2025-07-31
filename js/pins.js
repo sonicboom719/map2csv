@@ -133,10 +133,12 @@ export class PinManager {
         // マウスオーバー/アウトイベント
         marker.on('mouseover', () => {
             this.highlightPinInList(pin.id, true);
+            this.highlightPinOnMap(pin.id, true);
         });
         
         marker.on('mouseout', () => {
             this.highlightPinInList(pin.id, false);
+            this.highlightPinOnMap(pin.id, false);
         });
         
         // ドラッグイベント
@@ -295,10 +297,12 @@ export class PinManager {
             // ピンリストアイテムのマウスオーバー/アウトイベント
             div.addEventListener('mouseover', () => {
                 this.highlightPinOnMap(pin.id, true);
+                this.highlightPinInList(pin.id, true);
             });
             
             div.addEventListener('mouseout', () => {
                 this.highlightPinOnMap(pin.id, false);
+                this.highlightPinInList(pin.id, false);
             });
             
             this.pinList.appendChild(div);
@@ -310,9 +314,13 @@ export class PinManager {
         if (pinElement) {
             if (highlight) {
                 pinElement.style.backgroundColor = '#ffe4b5';
-                pinElement.style.transition = 'background-color 0.3s';
+                pinElement.style.transform = 'translateX(5px)';
+                pinElement.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+                pinElement.style.transition = 'all 0.3s ease';
             } else {
                 pinElement.style.backgroundColor = '';
+                pinElement.style.transform = '';
+                pinElement.style.boxShadow = '';
             }
         }
     }
