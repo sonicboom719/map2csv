@@ -77,15 +77,43 @@ export class PinManager {
         
         // 既存のイベントリスナーを削除してから設定
         this.map.off('click', this.mapClickHandler);
+        this.map.off('mousedown', this.mapMouseDownHandler);
+        this.map.off('mouseup', this.mapMouseUpHandler);
         
-        // イベントハンドラーを保存
-        this.mapClickHandler = (e) => {
+        // 長押し用のタイマー
+        let longPressTimer = null;
+        let mouseDownLatLng = null;
+        
+        // マウスダウンイベントハンドラー
+        this.mapMouseDownHandler = (e) => {
             if (this.enabled) {
-                this.addPin(e.latlng);
+                mouseDownLatLng = e.latlng;
+                longPressTimer = setTimeout(() => {
+                    // 長押し時：ピンを追加して編集画面を開く
+                    const pin = this.addPin(mouseDownLatLng, true); // 第2引数でモーダルを開くかどうか指定
+                }, 500); // 500ms長押し
             }
         };
         
-        // 地図クリックイベントを設定
+        // マウスアップイベントハンドラー
+        this.mapMouseUpHandler = (e) => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
+        
+        // クリックイベントハンドラー（通常クリック時）
+        this.mapClickHandler = (e) => {
+            if (this.enabled && longPressTimer === null) {
+                // 通常クリック：ピンを追加するが編集画面は開かない
+                this.addPin(e.latlng, false);
+            }
+        };
+        
+        // イベントリスナーを設定
+        this.map.on('mousedown', this.mapMouseDownHandler);
+        this.map.on('mouseup', this.mapMouseUpHandler);
         this.map.on('click', this.mapClickHandler);
     }
     
@@ -100,9 +128,15 @@ export class PinManager {
         if (this.mapClickHandler) {
             this.map.off('click', this.mapClickHandler);
         }
+        if (this.mapMouseDownHandler) {
+            this.map.off('mousedown', this.mapMouseDownHandler);
+        }
+        if (this.mapMouseUpHandler) {
+            this.map.off('mouseup', this.mapMouseUpHandler);
+        }
     }
     
-    addPin(latlng) {
+    addPin(latlng, openModal = false) {
         const pin = {
             id: this.pinIdCounter++,
             latlng: latlng,
@@ -124,7 +158,7 @@ export class PinManager {
             draggable: true
         }).addTo(this.map);
         
-        // マーカークリックでモーダルを開く
+        // 既存ピンはクリックで編集画面を開く
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             this.openModal(pin);
@@ -155,10 +189,14 @@ export class PinManager {
         pin.marker = marker;
         this.pins.push(pin);
         
-        // モーダルを開いて情報入力
-        this.openModal(pin);
+        // openModalがtrueの場合のみモーダルを開く（長押し時）
+        if (openModal) {
+            this.openModal(pin);
+        }
         
         this.updatePinList();
+        
+        return pin;
     }
     
     openModal(pin) {
