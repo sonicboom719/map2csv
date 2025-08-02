@@ -449,7 +449,7 @@ export class OverlayManager {
                 this.setMapCursor('crosshair');
                 info.innerHTML = `
                     <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                        地図上で対応する3点を選択してください
+                        地図上で対応する3点を選択します
                     </div>
                     <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
                         <div style="font-size: 16px; font-weight: bold; color: #27ae60; margin-bottom: 8px;">
@@ -540,7 +540,7 @@ export class OverlayManager {
                 this.setMapCursor('crosshair');
                 info.innerHTML = `
                     <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
-                        地図上で対応する2点を選択してください
+                        地図上で対応する2点を選択します
                     </div>
                     <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #2196f3;">
                         <div style="font-size: 16px; font-weight: bold; color: #1976d2; margin-bottom: 8px;">

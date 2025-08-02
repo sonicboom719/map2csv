@@ -3,73 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>テスト一覧 - 地図→CSV化支援ツール</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <title>テストスイート - 地図→CSV化支援ツール</title>
     <style>
-        .test-index {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-        }
-        
-        .test-list {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .test-item {
-            display: block;
-            padding: 15px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-            color: #333;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: all 0.3s;
-        }
-        
-        .test-item:hover {
-            background: #e3f2fd;
-            transform: translateX(5px);
-        }
-        
-        .test-item h3 {
-            margin: 0 0 5px 0;
-            color: #2c3e50;
-        }
-        
-        .test-item p {
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .test-header {
+            background: linear-gradient(135deg, #6f42c1, #e83e8c);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .test-header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 300;
+        }
+        
+        .test-content {
+            padding: 40px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .test-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #e9ecef;
+        }
+        
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .test-card h3 {
+            margin: 0 0 15px 0;
+            font-size: 20px;
+            color: #495057;
+        }
+        
+        .test-card p {
+            margin: 0 0 20px 0;
+            color: #6c757d;
+            line-height: 1.5;
+        }
+        
+        .test-card button {
+            background: #6f42c1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
             font-size: 14px;
-            color: #666;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        
+        .test-card button:hover {
+            background: #5a32a3;
+        }
+        
+        .test-card.basic button { background: #28a745; }
+        .test-card.basic button:hover { background: #218838; }
+        
+        .test-card.integration button { background: #17a2b8; }
+        .test-card.integration button:hover { background: #138496; }
+        
+        .test-card.unit button { background: #007bff; }
+        .test-card.unit button:hover { background: #0056b3; }
+        
+        .info-section {
+            background: #e9ecef;
+            padding: 30px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        
+        .info-section h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+        }
+        
+        .info-section ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .info-section li {
+            margin: 8px 0;
+            color: #6c757d;
+        }
+        
+        .feature-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
         }
     </style>
 </head>
 <body>
-    <div class="test-index">
-        <h1>テスト一覧</h1>
-        
-        <div class="test-list">
-            <a href="unit-tests.html" class="test-item">
-                <h3>ユニットテスト</h3>
-                <p>各モジュールの単体テスト</p>
-            </a>
-            
-            <a href="integration-test.html" class="test-item">
-                <h3>統合テスト</h3>
-                <p>アプリケーション全体の統合テスト</p>
-            </a>
-            
-            <a href="concat-csv-test.html" class="test-item">
-                <h3>正規化CSV結合テスト</h3>
-                <p>正規化CSV結合・ソート機能のテスト</p>
-            </a>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>テストスイート</h1>
+            <p>地図→CSV化支援ツール - 3点アフィン変換機能テスト</p>
+            <span class="feature-badge">HTML実行対応</span>
         </div>
         
-        <div style="text-align: center; margin-top: 30px;">
-            <a href="../index.html" style="color: #3498db;">← メインアプリに戻る</a>
+        <div class="test-content">
+            <div class="test-grid">
+                <div class="test-card basic">
+                    <h3>🧪 基本機能テスト</h3>
+                    <p>3点アフィン変換機能の基本的なロジックと各コンポーネントの動作をテストします。</p>
+                    <button onclick="window.open('basic-tests.html', '_blank')">
+                        基本テストを実行
+                    </button>
+                </div>
+                
+                <div class="test-card integration">
+                    <h3>🔧 統合テスト</h3>
+                    <p>実際のファイルとモジュールの統合状況、変更内容の整合性をテストします。</p>
+                    <button onclick="window.open('integration-tests.html', '_blank')">
+                        統合テストを実行
+                    </button>
+                </div>
+                
+                <div class="test-card unit">
+                    <h3>⚙️ ユニットテスト</h3>
+                    <p>個別コンポーネントの詳細な機能とOpenCV.js統合をテストします。</p>
+                    <button onclick="window.open('unit-tests.html', '_blank')">
+                        ユニットテストを実行
+                    </button>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <h3>📋 テスト概要</h3>
+                <ul>
+                    <li><strong>基本機能テスト:</strong> 3点変換ロジック、変換モード管理、最大点数管理、色分け、座標系変換</li>
+                    <li><strong>統合テスト:</strong> OpenCVTransformerモジュール、OverlayManager変更、SimpleDragResizeWindow変更、HTML変更、設定ファイル互換性</li>
+                    <li><strong>ユニットテスト:</strong> CONFIG/Utils、OpenCV.js統合、各Managerクラス、3点選択機能</li>
+                </ul>
+            </div>
+            
+            <div class="info-section">
+                <h3>🚀 実装済み機能</h3>
+                <ul>
+                    <li><strong>2点変換:</strong> スケール・回転調整（従来機能）</li>
+                    <li><strong>3点変換:</strong> アフィン変換による歪み補正（新機能）</li>
+                    <li><strong>プルダウン選択:</strong> 変換方式の動的切り替え</li>
+                    <li><strong>OpenCV.js統合:</strong> 高度な画像変換処理</li>
+                    <li><strong>座標対応:</strong> 選択点の正確な位置合わせ</li>
+                    <li><strong>UI改善:</strong> カラフルな状態表示、タイトルバー表示</li>
+                </ul>
+            </div>
+            
+            <div class="info-section">
+                <h3>📊 テスト実行方法</h3>
+                <ul>
+                    <li>各テストカードのボタンをクリックして個別にテストを実行</li>
+                    <li>新しいタブでテストページが開き、ブラウザ上で直接実行可能</li>
+                    <li>Node.jsは不要、すべてのテストがHTML形式で実行可能</li>
+                    <li>テスト結果は色分けされ、詳細ログも確認可能</li>
+                    <li>成功率と失敗項目が明確に表示されます</li>
+                </ul>
+            </div>
         </div>
     </div>
 </body>

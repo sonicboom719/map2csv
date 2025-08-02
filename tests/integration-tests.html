@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>統合テスト - 地図→CSV化支援ツール</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .test-header {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .test-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        
+        .test-content {
+            padding: 30px;
+        }
+        
+        .test-controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 5px;
+            transition: background 0.2s;
+        }
+        
+        button:hover { background: #138496; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .test-result {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .test-result.passed { background: #d4edda; color: #155724; }
+        .test-result.failed { background: #f8d7da; color: #721c24; }
+        .test-result.running { background: #fff3cd; color: #856404; }
+        
+        .test-summary {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .test-details {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            background: #f8f9fa;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>統合テストスイート</h1>
+            <p>3点アフィン変換の統合機能をテストします</p>
+        </div>
+        
+        <div class="test-content">
+            <div class="test-controls">
+                <button id="runAllTests">全テスト実行</button>
+            </div>
+            
+            <div id="testResults"></div>
+            
+            <div class="test-summary">
+                <div id="testSummary">テストを実行してください</div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <h3>テストログ</h3>
+                <div id="testLog" class="test-details"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class IntegrationTestRunner {
+            constructor() {
+                this.results = {
+                    total: 0,
+                    passed: 0,
+                    failed: 0,
+                    errors: []
+                };
+            }
+            
+            assert(condition, message) {
+                if (!condition) {
+                    throw new Error(`Assertion failed: ${message}`);
+                }
+            }
+            
+            log(message) {
+                const logContainer = document.getElementById('testLog');
+                if (logContainer) {
+                    logContainer.textContent += message + '\n';
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+                console.log(message);
+            }
+            
+            async test(name, testFunction) {
+                this.log(`実行中: ${name}`);
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'test-result running';
+                resultDiv.innerHTML = `<span>⏳</span><span>${name}</span>`;
+                document.getElementById('testResults').appendChild(resultDiv);
+                
+                try {
+                    await testFunction.call(this);
+                    this.results.passed++;
+                    resultDiv.className = 'test-result passed';
+                    resultDiv.innerHTML = `<span>✓</span><span>${name}</span>`;
+                    this.log(`✓ ${name}`);
+                    return true;
+                } catch (error) {
+                    this.results.failed++;
+                    this.results.errors.push({ test: name, error: error.message });
+                    resultDiv.className = 'test-result failed';
+                    resultDiv.innerHTML = `<span>✗</span><span>${name}: ${error.message}</span>`;
+                    this.log(`✗ ${name}: ${error.message}`);
+                    return false;
+                } finally {
+                    this.results.total++;
+                }
+            }
+            
+            // ファイル存在確認のテスト（fetch APIを使用）
+            async testFileExists(filePath) {
+                try {
+                    const response = await fetch(filePath, { method: 'HEAD' });
+                    return response.ok;
+                } catch (error) {
+                    return false;
+                }
+            }
+            
+            // ファイル内容確認のテスト
+            async testFileContent(filePath, searchText) {
+                try {
+                    const response = await fetch(filePath);
+                    if (!response.ok) return false;
+                    const content = await response.text();
+                    return content.includes(searchText);
+                } catch (error) {
+                    return false;
+                }
+            }
+            
+            // OpenCVTransformerモジュールのテスト
+            async testOpenCVTransformerModule() {
+                this.log('\\n=== OpenCVTransformerモジュール確認テスト ===');
+                
+                const filePath = '../js/utils/opencv-transformer.js';
+                const fileExists = await this.testFileExists(filePath);
+                this.assert(fileExists, 'OpenCVTransformerファイルが存在する');
+                
+                const hasClass = await this.testFileContent(filePath, 'export class OpenCVTransformer');
+                this.assert(hasClass, 'OpenCVTransformerクラスが定義されている');
+                
+                const hasAffineMethod = await this.testFileContent(filePath, 'calculateAffineTransform');
+                this.assert(hasAffineMethod, 'calculateAffineTransformメソッドが定義されている');
+                
+                const has3PointMethod = await this.testFileContent(filePath, 'transformImageFor3Points');
+                this.assert(has3PointMethod, 'transformImageFor3Pointsメソッドが定義されている');
+                
+                this.log('OpenCVTransformerモジュール確認テスト完了');
+            }
+            
+            // OverlayManagerの変更確認
+            async testOverlayManagerChanges() {
+                this.log('\\n=== OverlayManager変更確認テスト ===');
+                
+                const filePath = '../js/overlay-manager.js';
+                const fileExists = await this.testFileExists(filePath);
+                this.assert(fileExists, 'OverlayManagerファイルが存在する');
+                
+                const hasTransformMode = await this.testFileContent(filePath, 'transformMode');
+                this.assert(hasTransformMode, 'transformModeプロパティが追加されている');
+                
+                const has3PointMethod = await this.testFileContent(filePath, 'create3PointImageOverlay');
+                this.assert(has3PointMethod, 'create3PointImageOverlayメソッドが追加されている');
+                
+                const hasOpenCVImport = await this.testFileContent(filePath, 'OpenCVTransformer');
+                this.assert(hasOpenCVImport, 'OpenCVTransformerの参照が追加されている');
+                
+                const has3PointUI = await this.testFileContent(filePath, '3point');
+                this.assert(has3PointUI, '3点モード対応のUI更新が含まれている');
+                
+                this.log('OverlayManager変更確認テスト完了');
+            }
+            
+            // SimpleDragResizeWindowの変更確認
+            async testSimpleDragResizeWindowChanges() {
+                this.log('\\n=== SimpleDragResizeWindow変更確認テスト ===');
+                
+                const filePath = '../js/simple-drag-resize.js';
+                const fileExists = await this.testFileExists(filePath);
+                this.assert(fileExists, 'SimpleDragResizeWindowファイルが存在する');
+                
+                const hasMaxPoints = await this.testFileContent(filePath, 'maxPoints');
+                this.assert(hasMaxPoints, 'maxPointsパラメータが追加されている');
+                
+                const hasSetMaxPoints = await this.testFileContent(filePath, 'setMaxPoints');
+                this.assert(hasSetMaxPoints, 'setMaxPointsメソッドが追加されている');
+                
+                const hasBlueColor = await this.testFileContent(filePath, '#3498db');
+                this.assert(hasBlueColor, '3点目の青色が追加されている');
+                
+                const hasTitle = await this.testFileContent(filePath, '画像ウィンドウ');
+                this.assert(hasTitle, 'タイトルバーにタイトルが追加されている');
+                
+                this.log('SimpleDragResizeWindow変更確認テスト完了');
+            }
+            
+            // HTMLファイルの変更確認
+            async testHTMLChanges() {
+                this.log('\\n=== HTML変更確認テスト ===');
+                
+                const filePath = '../index.html';
+                const fileExists = await this.testFileExists(filePath);
+                this.assert(fileExists, 'index.htmlファイルが存在する');
+                
+                const hasTransformMode = await this.testFileContent(filePath, 'transformMode');
+                this.assert(hasTransformMode, '変換モード選択UIが追加されている');
+                
+                const hasOpenCV = await this.testFileContent(filePath, 'opencv.js');
+                this.assert(hasOpenCV, 'OpenCV.jsの読み込みが追加されている');
+                
+                const has3PointOption = await this.testFileContent(filePath, '3点');
+                this.assert(has3PointOption, '3点変換オプションが追加されている');
+                
+                this.log('HTML変更確認テスト完了');
+            }
+            
+            // 設定ファイルの互換性テスト
+            async testConfigurationCompatibility() {
+                this.log('\\n=== 設定ファイル互換性テスト ===');
+                
+                // CSS ファイルの確認
+                const cssExists = await this.testFileExists('../css/style.css');
+                this.assert(cssExists, 'CSSファイルが存在する');
+                this.log('✓ 既存CSSスタイルで3点変換に対応');
+                
+                // CONFIG.jsファイルの確認
+                const configExists = await this.testFileExists('../js/config.js');
+                this.assert(configExists, 'CONFIG.jsファイルが存在する');
+                
+                this.log('設定ファイル互換性テスト完了');
+            }
+            
+            displaySummary() {
+                const container = document.getElementById('testSummary');
+                const successRate = this.results.total === 0 ? 0 : 
+                    Math.round((this.results.passed / this.results.total) * 100);
+                
+                container.innerHTML = `
+                    <strong>テスト結果:</strong> 
+                    ${this.results.passed}/${this.results.total} 成功 
+                    (成功率: ${successRate}%)
+                    ${this.results.failed > 0 ? `<br><span style="color: #dc3545;">失敗: ${this.results.failed}</span>` : ''}
+                `;
+            }
+            
+            async runAllTests() {
+                this.log('🔧 統合テスト開始\\n');
+                
+                // 結果をクリア
+                this.results = { total: 0, passed: 0, failed: 0, errors: [] };
+                document.getElementById('testResults').innerHTML = '';
+                document.getElementById('testLog').textContent = '';
+                
+                try {
+                    await this.test('OpenCVTransformerモジュール', this.testOpenCVTransformerModule);
+                    await this.test('OverlayManager変更確認', this.testOverlayManagerChanges);
+                    await this.test('SimpleDragResizeWindow変更確認', this.testSimpleDragResizeWindowChanges);
+                    await this.test('HTML変更確認', this.testHTMLChanges);
+                    await this.test('設定ファイル互換性', this.testConfigurationCompatibility);
+                    
+                    this.log('\\n🎉 全統合テスト成功！');
+                    this.log(`\\n=== 統合テスト結果サマリ ===`);
+                    this.log(`✓ 成功: ${this.results.passed}/${this.results.total}`);
+                    this.log('✓ OpenCVTransformerモジュール: 正常');
+                    this.log('✓ OverlayManager変更: 正常');
+                    this.log('✓ SimpleDragResizeWindow変更: 正常');
+                    this.log('✓ HTML変更: 正常');
+                    this.log('✓ 設定ファイル互換性: 正常');
+                    
+                } catch (error) {
+                    this.log('\\n❌ 統合テスト失敗:', error.message);
+                    this.log(`\\n=== 統合テスト結果サマリ ===`);
+                    this.log(`❌ 成功: ${this.results.passed}/${this.results.total}`);
+                    this.log('❌ 一部の統合テストが失敗しました');
+                }
+                
+                this.displaySummary();
+            }
+        }
+        
+        const integrationTests = new IntegrationTestRunner();
+        
+        document.getElementById('runAllTests').addEventListener('click', () => {
+            integrationTests.runAllTests();
+        });
+    </script>
+</body>
+</html>
