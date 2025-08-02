@@ -121,13 +121,8 @@ export class OverlayManager {
                 // モード切替時は選択をリセット
                 this.resetPoints();
                 
-                // 説明文を更新
-                const info = this.overlaySection.querySelector('.info');
-                if (this.transformMode === '3point') {
-                    info.textContent = 'STEP1: 青ウィンドウで3点選択 → STEP2: 地図で対応する3点選択 → STEP3: 位置合わせ実行';
-                } else {
-                    info.textContent = 'STEP1: 青ウィンドウで2点選択 → STEP2: 地図で対応する2点選択 → STEP3: 位置合わせ実行';
-                }
+                // カラフルな説明文を更新
+                this.updateInstructionText();
                 
                 // 画像ウィンドウにモードを伝える
                 if (this.imageWindow) {
