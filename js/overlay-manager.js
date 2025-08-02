@@ -1173,28 +1173,19 @@ export class OverlayManager {
     }
     
     async create4PointImageOverlay(opacity) {
-        console.log('Creating 4-point overlay using 3-point method');
+        console.log('Creating 4-point true perspective overlay');
         console.log('Image points:', this.imagePoints);
         console.log('Map points:', this.mapPoints);
         
-        // 4点のうち最初の3点を使って3点アフィン変換と同じ方法で処理
-        // これにより3点変換と同じスケールで表示される
-        const imagePoints3 = this.imagePoints.slice(0, 3); // 最初の3点
-        const mapPoints3 = this.mapPoints.slice(0, 3);
-        
-        console.log('Using first 3 points for transform:');
-        console.log('Image points (3):', imagePoints3);
-        console.log('Map points (3):', mapPoints3);
-        
         try {
-            // 3点アフィン変換と同じ方法を使用
-            const transformResult = await OpenCVTransformer.transformImageFor3Points(
+            // 真の4点射影変換を使用
+            const transformResult = await OpenCVTransformer.transformImageFor4Points(
                 this.imageData, 
-                imagePoints3, 
-                mapPoints3
+                this.imagePoints, 
+                this.mapPoints
             );
             
-            console.log('3-point style transform result:', transformResult);
+            console.log('True 4-point perspective transform result:', transformResult);
             
             // 変換結果から画像とboundsを取得
             const imageUrl = transformResult.imageUrl;
@@ -1215,11 +1206,11 @@ export class OverlayManager {
                 this.options.opacity = newOpacity;
             }.bind(overlay);
             
-            console.log('4-point overlay created using 3-point method');
+            console.log('4-point true perspective overlay created successfully');
             return overlay;
             
         } catch (error) {
-            console.error('4点変換（3点方式）でエラー:', error);
+            console.error('真の4点射影変換でエラー:', error);
             console.log('フォールバック: 簡易境界ボックスを使用');
             
             // エラー時は簡易境界ボックス

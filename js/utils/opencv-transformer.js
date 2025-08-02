@@ -281,114 +281,80 @@ export class OpenCVTransformer {
                     return;
                 }
 
-                // 正しい4点射影変換を実行
-                console.log('OpenCV.jsを使用して4点射影変換を実行');
+                // 真の4点射影変換を実行（4点すべてを使用）
+                console.log('真の4点射影変換を実行');
+                console.log('使用する4点:');
+                console.log('  画像点1:', imagePts[0]);
+                console.log('  画像点2:', imagePts[1]);
+                console.log('  画像点3:', imagePts[2]);
+                console.log('  画像点4:', imagePts[3]);
+                console.log('  地図点1:', mapPts[0]);
+                console.log('  地図点2:', mapPts[1]);
+                console.log('  地図点3:', mapPts[2]);
+                console.log('  地図点4:', mapPts[3]);
 
-                // 画像をロード
-                const img = new Image();
-                img.onload = () => {
-                    try {
-                        // OpenCVで射影変換行列を計算（画像上の4点→地図上の4点への変換）
-                        console.log('射影変換行列を計算中...');
-                        console.log('画像上の4点:', imagePts);
-                        console.log('地図上の4点:', mapPts);
+                try {
+                    // 射影変換行列を計算
+                    const perspectiveMatrix = this.calculatePerspectiveMatrix4Points(imagePts, mapPts);
+                    
+                    console.log('計算された射影変換行列:', perspectiveMatrix);
+                    
+                    // 画像の4隅を射影変換で地図座標に変換
+                    const imageCorners = [
+                        { x: 0, y: 0 },                          // 左上
+                        { x: imageData.width, y: 0 },            // 右上
+                        { x: imageData.width, y: imageData.height }, // 右下
+                        { x: 0, y: imageData.height }            // 左下
+                    ];
+                    
+                    const transformedMapCorners = imageCorners.map(corner => 
+                        this.applyPerspectiveTransform4Points(corner, perspectiveMatrix)
+                    );
+                    
+                    console.log('変換された画像4隅の地図座標:', transformedMapCorners);
+                    
+                    // 変換された4隅から境界を計算
+                    const transformedLats = transformedMapCorners.map(corner => corner.lat);
+                    const transformedLngs = transformedMapCorners.map(corner => corner.lng);
+                    
+                    const bounds = [
+                        [Math.min(...transformedLats), Math.min(...transformedLngs)],  // 南西
+                        [Math.max(...transformedLats), Math.max(...transformedLngs)]   // 北東
+                    ];
+                    
+                    console.log('真の4点射影変換完了');
+                    console.log('選択した4点:', mapPts);
+                    console.log('画像全体の変換境界:', bounds);
+                    console.log('境界サイズ:', {
+                        latSize: bounds[1][0] - bounds[0][0],
+                        lngSize: bounds[1][1] - bounds[0][1]
+                    });
+                    
+                    resolve({
+                        imageUrl: imageData.url,  // 元画像を使用
+                        bounds: bounds,
+                        transformed: true,
+                        transformType: 'perspective',
+                        selectedPoints: mapPts,
+                        transformedCorners: transformedMapCorners
+                    });
                         
-                        // 地図座標を一時的なピクセル座標に変換（計算用）
-                        // 地図座標の範囲を取得
-                        const lats = mapPts.map(pt => pt.lat);
-                        const lngs = mapPts.map(pt => pt.lng);
-                        const minLat = Math.min(...lats);
-                        const maxLat = Math.max(...lats);
-                        const minLng = Math.min(...lngs);
-                        const maxLng = Math.max(...lngs);
-                        
-                        // 地図座標をピクセル座標に正規化（0-1000の範囲）
-                        const scale = 1000;
-                        const mapPixelPts = mapPts.map(pt => ({
-                            x: ((pt.lng - minLng) / (maxLng - minLng)) * scale,
-                            y: ((maxLat - pt.lat) / (maxLat - minLat)) * scale  // Y軸を反転
-                        }));
-                        
-                        console.log('正規化された地図ピクセル座標:', mapPixelPts);
-                        
-                        // 射影変換行列を計算
-                        const perspectiveMatrix = this.calculatePerspectiveTransform(imagePts, mapPixelPts);
-                        
-                        // 画像の4隅を射影変換
-                        const imageCorners = [
-                            { x: 0, y: 0 },                          // 左上
-                            { x: imageData.width, y: 0 },            // 右上
-                            { x: imageData.width, y: imageData.height }, // 右下
-                            { x: 0, y: imageData.height }            // 左下
-                        ];
-                        
-                        // 各隅をピクセル座標に変換
-                        const transformedPixelCorners = imageCorners.map(corner => 
-                            this.transformPointPerspective(corner, perspectiveMatrix)
-                        );
-                        
-                        console.log('変換されたピクセル座標の隅:', transformedPixelCorners);
-                        
-                        // ピクセル座標を地図座標に戻す
-                        const transformedMapCorners = transformedPixelCorners.map(pixel => ({
-                            lat: maxLat - (pixel.y / scale) * (maxLat - minLat),
-                            lng: minLng + (pixel.x / scale) * (maxLng - minLng)
-                        }));
-                        
-                        console.log('変換された地図座標の隅:', transformedMapCorners);
-                        
-                        // 変換された4隅から境界を計算
-                        const transformedLats = transformedMapCorners.map(corner => corner.lat);
-                        const transformedLngs = transformedMapCorners.map(corner => corner.lng);
-                        
-                        const bounds = [
-                            [Math.min(...transformedLats), Math.min(...transformedLngs)],  // 南西
-                            [Math.max(...transformedLats), Math.max(...transformedLngs)]   // 北東
-                        ];
-                        
-                        // メモリ解放
-                        perspectiveMatrix.delete();
-                        
-                        console.log('4点射影変換完了');
-                        console.log('選択した4点:', mapPts);
-                        console.log('画像全体の変換境界:', bounds);
-                        console.log('境界サイズ:', {
-                            latSize: bounds[1][0] - bounds[0][0],
-                            lngSize: bounds[1][1] - bounds[0][1]
-                        });
-                        
-                        resolve({
-                            imageUrl: imageData.url,  // 元画像を使用
-                            bounds: bounds,
-                            transformed: true,
-                            transformType: 'perspective',
-                            selectedPoints: mapPts,
-                            transformedCorners: transformedMapCorners
-                        });
-                        
-                    } catch (transformError) {
-                        console.error('4点射影変換処理エラー:', transformError);
-                        // エラー時は元画像を使用
-                        const lats = mapPts.map(pt => pt.lat);
-                        const lngs = mapPts.map(pt => pt.lng);
-                        const bounds = [
-                            [Math.min(...lats), Math.min(...lngs)],
-                            [Math.max(...lats), Math.max(...lngs)]
-                        ];
-                        
-                        resolve({
-                            imageUrl: imageData.url,
-                            bounds: bounds,
-                            transformed: false
-                        });
-                    }
-                };
-                
-                img.onerror = () => {
-                    reject(new Error('画像の読み込みに失敗しました'));
-                };
-                
-                img.src = imageData.url;
+                } catch (transformError) {
+                    console.error('4点射影変換処理エラー:', transformError);
+                    // エラー時は元画像を使用
+                    const lats = mapPts.map(pt => pt.lat);
+                    const lngs = mapPts.map(pt => pt.lng);
+                    const bounds = [
+                        [Math.min(...lats), Math.min(...lngs)],
+                        [Math.max(...lats), Math.max(...lngs)]
+                    ];
+                    
+                    resolve({
+                        imageUrl: imageData.url,
+                        bounds: bounds,
+                        transformed: false
+                    });
+                }
                 
             } catch (error) {
                 console.error('4点射影変換エラー:', error);
@@ -517,6 +483,147 @@ export class OpenCVTransformer {
             lat: a * point.x + b * point.y + c,
             lng: d * point.x + e * point.y + f
         };
+    }
+
+    /**
+     * 4点を使った射影変換行列を計算
+     * @param {Array} srcPoints - 画像上の4点 [{x, y}, {x, y}, {x, y}, {x, y}]
+     * @param {Array} dstPoints - 地図上の4点 [{lat, lng}, {lat, lng}, {lat, lng}, {lat, lng}]
+     * @returns {Object} 射影変換行列 {a, b, c, d, e, f, g, h}
+     */
+    static calculatePerspectiveMatrix4Points(srcPoints, dstPoints) {
+        if (srcPoints.length !== 4 || dstPoints.length !== 4) {
+            throw new Error('Perspective transform requires exactly 4 points');
+        }
+
+        const [src1, src2, src3, src4] = srcPoints;
+        const [dst1, dst2, dst3, dst4] = dstPoints;
+
+        // 画像座標
+        const x1 = src1.x, y1 = src1.y;
+        const x2 = src2.x, y2 = src2.y;
+        const x3 = src3.x, y3 = src3.y;
+        const x4 = src4.x, y4 = src4.y;
+
+        // 地図座標（緯度経度）
+        const u1 = dst1.lat, v1 = dst1.lng;
+        const u2 = dst2.lat, v2 = dst2.lng;
+        const u3 = dst3.lat, v3 = dst3.lng;
+        const u4 = dst4.lat, v4 = dst4.lng;
+
+        // 射影変換行列の計算
+        // [lat] = [a b c] [x]
+        // [lng]   [d e f] [y]  
+        // [1]     [g h 1] [1]
+        
+        // 同次座標での射影変換: u = (ax + by + c) / (gx + hy + 1)
+
+        // 8x8の連立方程式を解いて8つの係数を求める
+        const A = [
+            [x1, y1, 1, 0, 0, 0, -u1*x1, -u1*y1],
+            [0, 0, 0, x1, y1, 1, -v1*x1, -v1*y1],
+            [x2, y2, 1, 0, 0, 0, -u2*x2, -u2*y2],
+            [0, 0, 0, x2, y2, 1, -v2*x2, -v2*y2],
+            [x3, y3, 1, 0, 0, 0, -u3*x3, -u3*y3],
+            [0, 0, 0, x3, y3, 1, -v3*x3, -v3*y3],
+            [x4, y4, 1, 0, 0, 0, -u4*x4, -u4*y4],
+            [0, 0, 0, x4, y4, 1, -v4*x4, -v4*y4]
+        ];
+
+        const B = [u1, v1, u2, v2, u3, v3, u4, v4];
+
+        // ガウス消去法で連立方程式を解く
+        const solution = this.solveLinearSystem(A, B);
+
+        if (!solution) {
+            console.warn('Singular matrix in 4-point perspective transform, using identity');
+            return {
+                a: 1, b: 0, c: 0,
+                d: 0, e: 1, f: 0,
+                g: 0, h: 0
+            };
+        }
+
+        return {
+            a: solution[0], b: solution[1], c: solution[2],
+            d: solution[3], e: solution[4], f: solution[5],
+            g: solution[6], h: solution[7]
+        };
+    }
+
+    /**
+     * 4点射影変換を点に適用
+     * @param {Object} point - 変換する点 {x, y}
+     * @param {Object} matrix - 射影変換行列 {a, b, c, d, e, f, g, h}
+     * @returns {Object} 変換後の点 {lat, lng}
+     */
+    static applyPerspectiveTransform4Points(point, matrix) {
+        const { a, b, c, d, e, f, g, h } = matrix;
+        const x = point.x;
+        const y = point.y;
+
+        // 同次座標での射影変換
+        const w = g * x + h * y + 1;
+
+        if (Math.abs(w) < 1e-10) {
+            console.warn('Division by zero in perspective transform');
+            return { lat: 0, lng: 0 };
+        }
+
+        return {
+            lat: (a * x + b * y + c) / w,
+            lng: (d * x + e * y + f) / w
+        };
+    }
+
+    /**
+     * ガウス消去法で連立方程式を解く
+     * @param {Array} A - 係数行列
+     * @param {Array} B - 定数項
+     * @returns {Array|null} 解のベクトル、または null（特異行列の場合）
+     */
+    static solveLinearSystem(A, B) {
+        const n = A.length;
+        const augmented = A.map((row, i) => [...row, B[i]]);
+
+        // 前進消去
+        for (let i = 0; i < n; i++) {
+            // ピボット選択
+            let maxRow = i;
+            for (let k = i + 1; k < n; k++) {
+                if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+                    maxRow = k;
+                }
+            }
+
+            // 行交換
+            [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+            // 特異行列チェック
+            if (Math.abs(augmented[i][i]) < 1e-10) {
+                return null;
+            }
+
+            // 前進消去
+            for (let k = i + 1; k < n; k++) {
+                const factor = augmented[k][i] / augmented[i][i];
+                for (let j = i; j <= n; j++) {
+                    augmented[k][j] -= factor * augmented[i][j];
+                }
+            }
+        }
+
+        // 後退代入
+        const solution = new Array(n);
+        for (let i = n - 1; i >= 0; i--) {
+            solution[i] = augmented[i][n];
+            for (let j = i + 1; j < n; j++) {
+                solution[i] -= augmented[i][j] * solution[j];
+            }
+            solution[i] /= augmented[i][i];
+        }
+
+        return solution;
     }
 
 }
