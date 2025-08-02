@@ -54,6 +54,24 @@ export class SimpleTestRunner {
     }
     
     /**
+     * 真であることをチェック
+     */
+    assertTrue(condition, message) {
+        if (!condition) {
+            throw new Error(`${message}: expected true, got ${condition}`);
+        }
+    }
+    
+    /**
+     * 偽であることをチェック
+     */
+    assertFalse(condition, message) {
+        if (condition) {
+            throw new Error(`${message}: expected false, got ${condition}`);
+        }
+    }
+    
+    /**
      * 例外がスローされることをチェック
      */
     async assertThrows(asyncFunction, message) {

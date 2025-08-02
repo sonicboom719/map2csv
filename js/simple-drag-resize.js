@@ -1,13 +1,14 @@
 // シンプルなドラッグ&リサイズウィンドウクラス
 export class SimpleDragResizeWindow {
-    constructor(imageData, onPointClick, onClose) {
+    constructor(imageData, onPointClick, onClose, maxPoints = 2) {
         this.imageData = imageData;
         this.onPointClick = onPointClick;
         this.onClose = onClose;
+        this.maxPoints = maxPoints; // 最大選択可能な点数
         this.isDragging = false;
         this.isResizing = false;
         this.currentHandle = null;
-        this.selectedPoints = []; // 選択された2点を保存
+        this.selectedPoints = []; // 選択された点を保存
         
         this.createWindow();
     }
@@ -43,6 +44,7 @@ export class SimpleDragResizeWindow {
             height: 30px;
         `;
         this.titleBar.innerHTML = `
+            <span style="flex: 1; font-weight: bold; font-size: 14px;">画像ウィンドウ</span>
             <button id="closeWindow" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 4px;">×</button>
         `;
         
@@ -205,8 +207,8 @@ export class SimpleDragResizeWindow {
             }
         }
         
-        // 新しい点を追加（最大2点）
-        if (this.selectedPoints.length < 2) {
+        // 新しい点を追加（最大点数まで）
+        if (this.selectedPoints.length < this.maxPoints) {
             this.selectedPoints.push(clickedPoint);
             this.redrawWithPoints();
             
@@ -307,8 +309,9 @@ export class SimpleDragResizeWindow {
             
             // 選択された点を描画
             ctx.setLineDash([]); // 線のスタイルをリセット
+            const colors = ['#27ae60', '#e74c3c', '#3498db']; // 3点目は青
             this.selectedPoints.forEach((point, index) => {
-                ctx.fillStyle = index === 0 ? '#27ae60' : '#e74c3c';
+                ctx.fillStyle = colors[index] || '#666666';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
                 
@@ -330,6 +333,15 @@ export class SimpleDragResizeWindow {
     clearPoints() {
         this.selectedPoints = [];
         this.redrawWithPoints();
+    }
+    
+    setMaxPoints(maxPoints) {
+        this.maxPoints = maxPoints;
+        // 既存の点が新しい最大数を超えている場合は削除
+        if (this.selectedPoints.length > maxPoints) {
+            this.selectedPoints = this.selectedPoints.slice(0, maxPoints);
+            this.redrawWithPoints();
+        }
     }
     
     getSelectedPoints() {
@@ -534,7 +546,7 @@ export class SimpleDragResizeWindow {
                 point.canvasX = newCanvasX;
                 point.canvasY = newCanvasY;
                 
-                ctx.fillStyle = index === 0 ? '#27ae60' : '#e74c3c';
+                ctx.fillStyle = colors[index] || '#666666';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
                 

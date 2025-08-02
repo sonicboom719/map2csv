@@ -40,6 +40,12 @@
 			<!-- オーバーレイ制御セクション -->
 			<div class="section" id="overlaySection" style="display: none;">
 				<h2>3. 画像の位置合わせ</h2>
+				<div class="transform-mode-selector" style="margin-bottom: 15px;">
+					<select id="transformMode" style="padding: 5px;">
+						<option value="2point" selected>2点変換（スケール・回転）</option>
+						<option value="3point">3点変換（アフィン変換）</option>
+					</select>
+				</div>
 				<p class="info">STEP1: 青ウィンドウで2点選択 → STEP2: 地図で対応する2点選択 → STEP3: 位置合わせ実行</p>
 				<div class="point-selection">
 					<div class="point-status">
@@ -149,6 +155,18 @@
 	<script>
 		pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 	</script>
+	<!-- OpenCV.js -->
+	<script>
+		var Module = {
+			onRuntimeInitialized: function() {
+				console.log('OpenCV.js is ready');
+				window.cvReady = true;
+				// OpenCV.js準備完了イベントを発行
+				window.dispatchEvent(new Event('opencv-ready'));
+			}
+		};
+	</script>
+	<script async src="https://docs.opencv.org/4.5.0/opencv.js"></script>
 	<script src="js/main.js" type="module"></script>
 </body>
 </html>
