@@ -126,14 +126,14 @@ export class OverlayManager {
                 
                 // 画像ウィンドウにモードを伝える
                 if (this.imageWindow) {
-                    this.imageWindow.setMaxPoints(this.transformMode === '3point' ? 3 : 2);
+                    this.imageWindow.setMaxPoints(this.getRequiredPoints());
                 }
             });
         }
         
         // 地図のクリックイベント
         this.mapClickHandler = (e) => {
-            const requiredPoints = this.transformMode === '3point' ? 3 : 2;
+            const requiredPoints = this.getRequiredPoints();
             // 画像で必要数の点を選択完了後はマップクリックを受け付ける
             if (this.imagePoints.length === requiredPoints) {
                 this.addMapPoint(e);
@@ -344,7 +344,7 @@ export class OverlayManager {
         }
         
         // 新しいシンプルなドラッグ&リサイズウィンドウを作成
-        const maxPoints = this.transformMode === '3point' ? 3 : 2;
+        const maxPoints = this.getRequiredPoints();
         this.imageWindow = new SimpleDragResizeWindow(this.imageData, (data) => {
             this.handleImagePointSelection(data);
         }, () => {
@@ -397,10 +397,16 @@ export class OverlayManager {
         this.mapPoints = [];
     }
     
+    // 現在の変換モードに必要な点数を取得
+    getRequiredPoints() {
+        return this.transformMode === '3point' ? 3 : 
+               this.transformMode === '4point' ? 4 : 2;
+    }
+    
     updateUIForImagePoints() {
         this.updatePointsDisplay();
         
-        const requiredPoints = this.transformMode === '3point' ? 3 : 2;
+        const requiredPoints = this.getRequiredPoints();
         
         // 適用ボタンの状態を更新
         console.log('🔄 ボタン状態更新:', {
@@ -421,16 +427,120 @@ export class OverlayManager {
     
     updateInstructionText() {
         const info = this.overlaySection.querySelector('.info');
-        const requiredPoints = this.transformMode === '3point' ? 3 : 2;
-        const pointsText = this.transformMode === '3point' ? '3点' : '2点';
+        const requiredPoints = this.getRequiredPoints();
+        const pointsText = this.transformMode === '4point' ? '4点' : 
+                          this.transformMode === '3point' ? '3点' : '2点';
         
         // 画像選択中はマップのカーソルを通常に戻す
         if (this.imagePoints.length < requiredPoints) {
             this.setMapCursor('');
         }
         
+        // 4点モードの場合の追加条件
+        if (this.transformMode === '4point') {
+            if (this.imagePoints.length === 2 && this.mapPoints.length === 0) {
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                        画像上で3点目を選択します
+                    </div>
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #3498db;">
+                        <div style="font-size: 16px; font-weight: bold; color: #2196f3; margin-bottom: 8px;">
+                            STEP3: 画像の3点目をCLICK
+                        </div>
+                        <div style="font-size: 14px; color: #0d47a1;">
+                            右の画像ウィンドウで3番目の基準点をCLICKしてください
+                        </div>
+                    </div>
+                `;
+            } else if (this.imagePoints.length === 3 && this.mapPoints.length === 0) {
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                        画像上で4点目を選択します
+                    </div>
+                    <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9b59b6;">
+                        <div style="font-size: 16px; font-weight: bold; color: #8e44ad; margin-bottom: 8px;">
+                            STEP4: 画像の4点目をCLICK
+                        </div>
+                        <div style="font-size: 14px; color: #6c3483;">
+                            右の画像ウィンドウで4番目の基準点をCLICKしてください
+                        </div>
+                    </div>
+                `;
+            } else if (this.imagePoints.length === 4 && this.mapPoints.length === 0) {
+                this.setMapCursor('crosshair');
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                        地図上で対応する4点を選択します
+                    </div>
+                    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #27ae60;">
+                        <div style="font-size: 16px; font-weight: bold; color: #27ae60; margin-bottom: 8px;">
+                            STEP5: 地図の1点目をCLICK
+                        </div>
+                        <div style="font-size: 14px; color: #2d5a2d;">
+                            画像の1点目（緑）に対応する地図上の場所をCLICKしてください
+                        </div>
+                    </div>
+                `;
+            } else if (this.imagePoints.length === 4 && this.mapPoints.length === 1) {
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                        地図上で2点目を選択します
+                    </div>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #f39c12;">
+                        <div style="font-size: 16px; font-weight: bold; color: #e67e22; margin-bottom: 8px;">
+                            STEP6: 地図の2点目をCLICK
+                        </div>
+                        <div style="font-size: 14px; color: #856404;">
+                            画像の2点目（赤）に対応する地図上の場所をCLICKしてください
+                        </div>
+                    </div>
+                `;
+            } else if (this.imagePoints.length === 4 && this.mapPoints.length === 2) {
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                        地図上で3点目を選択します
+                    </div>
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #3498db;">
+                        <div style="font-size: 16px; font-weight: bold; color: #2196f3; margin-bottom: 8px;">
+                            STEP7: 地図の3点目をCLICK
+                        </div>
+                        <div style="font-size: 14px; color: #0d47a1;">
+                            画像の3点目（青）に対応する地図上の場所をCLICKしてください
+                        </div>
+                    </div>
+                `;
+            } else if (this.imagePoints.length === 4 && this.mapPoints.length === 3) {
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
+                        地図上で4点目を選択します
+                    </div>
+                    <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #9b59b6;">
+                        <div style="font-size: 16px; font-weight: bold; color: #8e44ad; margin-bottom: 8px;">
+                            STEP8: 地図の4点目をCLICK
+                        </div>
+                        <div style="font-size: 14px; color: #6c3483;">
+                            画像の4点目（紫）に対応する地図上の場所をCLICKしてください
+                        </div>
+                    </div>
+                `;
+            } else if (this.imagePoints.length === 4 && this.mapPoints.length === 4) {
+                info.innerHTML = `
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #28a745;">
+                        ✅ 4点対応が完了しました！
+                    </div>
+                    <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #28a745;">
+                        <div style="font-size: 16px; font-weight: bold; color: #28a745; margin-bottom: 8px;">
+                            準備完了 🎉
+                        </div>
+                        <div style="font-size: 14px; color: #155724;">
+                            「位置合わせを実行」をCLICKして射影変換を適用してください
+                        </div>
+                    </div>
+                `;
+            }
+        }
         // 3点モードの場合の追加条件
-        if (this.transformMode === '3point') {
+        else if (this.transformMode === '3point') {
             if (this.imagePoints.length === 2 && this.mapPoints.length === 0) {
                 info.innerHTML = `
                     <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">
@@ -590,14 +700,14 @@ export class OverlayManager {
         const latlng = event.latlng;
         console.log('Map clicked at:', latlng);
         
-        const maxPoints = this.transformMode === '3point' ? 3 : 2;
+        const maxPoints = this.getRequiredPoints();
         
         // 新しい点を追加（最大点数は変換モードによる）
         if (this.mapPoints.length < maxPoints) {
             console.log(`Adding new point ${this.mapPoints.length + 1} at:`, latlng);
             this.mapPoints.push(latlng);
             
-            const colors = ['#27ae60', '#e74c3c', '#3498db']; // 3点目は青
+            const colors = ['#27ae60', '#e74c3c', '#3498db', '#9b59b6']; // 緑、赤、青、紫
             const index = this.mapPoints.length - 1;
             
             // ドラッグ可能なマーカーを作成
@@ -708,8 +818,8 @@ export class OverlayManager {
     }
     
     updatePointsDisplay() {
-        const requiredPoints = this.transformMode === '3point' ? 3 : 2;
-        const colors = ['#27ae60', '#e74c3c', '#3498db'];
+        const requiredPoints = this.getRequiredPoints();
+        const colors = ['#27ae60', '#e74c3c', '#3498db', '#9b59b6']; // 緑、赤、青、紫
         
         // 画像ポイントの表示更新
         this.imagePointsDiv.innerHTML = '';
@@ -1062,8 +1172,253 @@ export class OverlayManager {
         }
     }
     
+    async create4PointImageOverlay(opacity) {
+        console.log('Creating 4-point overlay using 3-point method');
+        console.log('Image points:', this.imagePoints);
+        console.log('Map points:', this.mapPoints);
+        
+        // 4点のうち最初の3点を使って3点アフィン変換と同じ方法で処理
+        // これにより3点変換と同じスケールで表示される
+        const imagePoints3 = this.imagePoints.slice(0, 3); // 最初の3点
+        const mapPoints3 = this.mapPoints.slice(0, 3);
+        
+        console.log('Using first 3 points for transform:');
+        console.log('Image points (3):', imagePoints3);
+        console.log('Map points (3):', mapPoints3);
+        
+        try {
+            // 3点アフィン変換と同じ方法を使用
+            const transformResult = await OpenCVTransformer.transformImageFor3Points(
+                this.imageData, 
+                imagePoints3, 
+                mapPoints3
+            );
+            
+            console.log('3-point style transform result:', transformResult);
+            
+            // 変換結果から画像とboundsを取得
+            const imageUrl = transformResult.imageUrl;
+            const bounds = transformResult.bounds;
+            
+            // ImageOverlayを作成
+            const overlay = L.imageOverlay(imageUrl, bounds, {
+                opacity: opacity,
+                interactive: false
+            }).addTo(this.map);
+            
+            // 透明度設定機能を追加
+            overlay.setOpacity = function(newOpacity) {
+                const img = this.getElement();
+                if (img) {
+                    img.style.opacity = newOpacity;
+                }
+                this.options.opacity = newOpacity;
+            }.bind(overlay);
+            
+            console.log('4-point overlay created using 3-point method');
+            return overlay;
+            
+        } catch (error) {
+            console.error('4点変換（3点方式）でエラー:', error);
+            console.log('フォールバック: 簡易境界ボックスを使用');
+            
+            // エラー時は簡易境界ボックス
+            const bounds = this.calculate4PointBounds(this.mapPoints);
+            
+            const overlay = L.imageOverlay(this.imageData.url, bounds, {
+                opacity: opacity,
+                interactive: false
+            }).addTo(this.map);
+            
+            overlay.setOpacity = function(newOpacity) {
+                const img = this.getElement();
+                if (img) {
+                    img.style.opacity = newOpacity;
+                }
+                this.options.opacity = newOpacity;
+            }.bind(overlay);
+            
+            return overlay;
+        }
+    }
+    
+    // 4点の正確な対応を計算して画像全体の境界を求める
+    calculate4PointAccurateBounds(imagePoints, mapPoints) {
+        console.log('Calculating accurate 4-point bounds');
+        console.log('Image points:', imagePoints);
+        console.log('Map points:', mapPoints);
+        
+        // 画像の4隅の座標
+        const imageCorners = [
+            { x: 0, y: 0 },                          // 左上
+            { x: this.imageData.width, y: 0 },       // 右上
+            { x: this.imageData.width, y: this.imageData.height }, // 右下
+            { x: 0, y: this.imageData.height }       // 左下
+        ];
+        
+        console.log('Image corners:', imageCorners);
+        console.log('Image size:', { width: this.imageData.width, height: this.imageData.height });
+        
+        // 簡易的な射影変換で画像の4隅を地図座標に変換
+        const transformedCorners = imageCorners.map(corner => 
+            this.transformPointSimple(corner, imagePoints, mapPoints)
+        );
+        
+        console.log('Transformed corners:', transformedCorners);
+        
+        // 変換された4隅から境界を計算
+        const lats = transformedCorners.map(corner => corner.lat);
+        const lngs = transformedCorners.map(corner => corner.lng);
+        
+        const bounds = [
+            [Math.min(...lats), Math.min(...lngs)],  // 南西
+            [Math.max(...lats), Math.max(...lngs)]   // 北東
+        ];
+        
+        console.log('Final bounds from transformed corners:', bounds);
+        console.log('Bounds size:', {
+            latSize: bounds[1][0] - bounds[0][0],
+            lngSize: bounds[1][1] - bounds[0][1]
+        });
+        
+        return bounds;
+    }
+    
+    // アフィン変換を使った3点ベースの変換（より安定）
+    transformPointSimple(point, srcPoints, dstPoints) {
+        // 4点を3点アフィン変換で近似（最初の3点を使用）
+        const src1 = srcPoints[0], src2 = srcPoints[1], src3 = srcPoints[3]; // 左上、右上、左下
+        const dst1 = dstPoints[0], dst2 = dstPoints[1], dst3 = dstPoints[3];
+        
+        // アフィン変換行列を計算
+        const matrix = this.calculateAffineTransformMatrix(
+            [src1, src2, src3],
+            [dst1, dst2, dst3]
+        );
+        
+        // 点を変換
+        const result = this.applyAffineTransform(point, matrix);
+        
+        console.log('Transform point', point, 'to', result);
+        
+        return result;
+    }
+    
+    // アフィン変換行列を計算
+    calculateAffineTransformMatrix(srcPoints, dstPoints) {
+        const [src1, src2, src3] = srcPoints;
+        const [dst1, dst2, dst3] = dstPoints;
+        
+        // アフィン変換行列の計算
+        const x1 = src1.x, y1 = src1.y;
+        const x2 = src2.x, y2 = src2.y;
+        const x3 = src3.x, y3 = src3.y;
+        
+        const u1 = dst1.lat, v1 = dst1.lng;
+        const u2 = dst2.lat, v2 = dst2.lng;
+        const u3 = dst3.lat, v3 = dst3.lng;
+        
+        // 連立方程式を解いてアフィン変換行列を求める
+        const det = (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
+        
+        if (Math.abs(det) < 1e-10) {
+            console.warn('Singular matrix in affine transform, using identity');
+            return {
+                a: 1, b: 0, c: 0,
+                d: 0, e: 1, f: 0
+            };
+        }
+        
+        const a = ((u1 - u3) * (y2 - y3) - (u2 - u3) * (y1 - y3)) / det;
+        const b = ((x1 - x3) * (u2 - u3) - (x2 - x3) * (u1 - u3)) / det;
+        const c = u3 - a * x3 - b * y3;
+        
+        const d = ((v1 - v3) * (y2 - y3) - (v2 - v3) * (y1 - y3)) / det;
+        const e = ((x1 - x3) * (v2 - v3) - (x2 - x3) * (v1 - v3)) / det;
+        const f = v3 - d * x3 - e * y3;
+        
+        return { a, b, c, d, e, f };
+    }
+    
+    // アフィン変換を適用
+    applyAffineTransform(point, matrix) {
+        const { a, b, c, d, e, f } = matrix;
+        
+        return {
+            lat: a * point.x + b * point.y + c,
+            lng: d * point.x + e * point.y + f
+        };
+    }
+    
+    // 4点から境界ボックスを計算（シンプル版）
+    calculate4PointBounds(mapPoints) {
+        const lats = mapPoints.map(pt => pt.lat);
+        const lngs = mapPoints.map(pt => pt.lng);
+        
+        return [
+            [Math.min(...lats), Math.min(...lngs)], // 南西
+            [Math.max(...lats), Math.max(...lngs)]  // 北東
+        ];
+    }
+    
+    // 4点の配置に基づいて最適化された境界を計算
+    calculate4PointOptimizedBounds(mapPoints) {
+        console.log('4点の最適化境界計算開始:', mapPoints);
+        
+        // 各点の座標を取得
+        const lats = mapPoints.map(pt => pt.lat);
+        const lngs = mapPoints.map(pt => pt.lng);
+        
+        // 重心を計算
+        const centerLat = lats.reduce((sum, lat) => sum + lat, 0) / 4;
+        const centerLng = lngs.reduce((sum, lng) => sum + lng, 0) / 4;
+        
+        console.log('4点の重心:', { lat: centerLat, lng: centerLng });
+        
+        // 各点から重心への距離を計算
+        const distances = mapPoints.map(pt => {
+            const dLat = pt.lat - centerLat;
+            const dLng = pt.lng - centerLng;
+            return Math.sqrt(dLat * dLat + dLng * dLng);
+        });
+        
+        const maxDistance = Math.max(...distances);
+        console.log('重心からの最大距離:', maxDistance);
+        
+        // 主軸方向を計算（最初の2点のベクトル）
+        const mainVector = {
+            lat: mapPoints[1].lat - mapPoints[0].lat,
+            lng: mapPoints[1].lng - mapPoints[0].lng
+        };
+        
+        const mainVectorLength = Math.sqrt(mainVector.lat * mainVector.lat + mainVector.lng * mainVector.lng);
+        console.log('主軸ベクトル長:', mainVectorLength);
+        
+        // 4点の範囲に基づいて適応的な境界を計算
+        const latRange = Math.max(...lats) - Math.min(...lats);
+        const lngRange = Math.max(...lngs) - Math.min(...lngs);
+        
+        // より正確な境界マージンを計算
+        const latMargin = Math.max(latRange * 0.05, maxDistance * 0.1);
+        const lngMargin = Math.max(lngRange * 0.05, maxDistance * 0.1);
+        
+        const optimizedBounds = [
+            [centerLat - maxDistance - latMargin, centerLng - maxDistance - lngMargin],  // 南西
+            [centerLat + maxDistance + latMargin, centerLng + maxDistance + lngMargin]   // 北東
+        ];
+        
+        console.log('最適化された境界:', optimizedBounds);
+        console.log('境界サイズ:', {
+            latSize: optimizedBounds[1][0] - optimizedBounds[0][0],
+            lngSize: optimizedBounds[1][1] - optimizedBounds[0][1]
+        });
+        
+        return optimizedBounds;
+    }
+    
+    
     applyOverlay() {
-        const requiredPoints = this.transformMode === '3point' ? 3 : 2;
+        const requiredPoints = this.getRequiredPoints();
         
         console.log('🔄 applyOverlay実行:', {
             transformMode: this.transformMode,
@@ -1105,7 +1460,10 @@ export class OverlayManager {
         let overlayResult;
         const opacity = parseFloat(document.getElementById('imageOpacity').value);
         
-        if (this.transformMode === '3point') {
+        if (this.transformMode === '4point') {
+            // 4点射影変換
+            overlayResult = this.create4PointImageOverlay(opacity);
+        } else if (this.transformMode === '3point') {
             // 3点アフィン変換
             overlayResult = this.create3PointImageOverlay(opacity);
         } else {

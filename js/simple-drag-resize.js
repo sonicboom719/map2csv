@@ -309,7 +309,7 @@ export class SimpleDragResizeWindow {
             
             // 選択された点を描画
             ctx.setLineDash([]); // 線のスタイルをリセット
-            const colors = ['#27ae60', '#e74c3c', '#3498db']; // 3点目は青
+            const colors = ['#27ae60', '#e74c3c', '#3498db', '#9b59b6']; // 緑、赤、青、紫
             this.selectedPoints.forEach((point, index) => {
                 ctx.fillStyle = colors[index] || '#666666';
                 ctx.strokeStyle = 'white';
@@ -546,7 +546,8 @@ export class SimpleDragResizeWindow {
                 point.canvasX = newCanvasX;
                 point.canvasY = newCanvasY;
                 
-                ctx.fillStyle = colors[index] || '#666666';
+                const pointColors = ['#27ae60', '#e74c3c', '#3498db', '#9b59b6']; // 緑、赤、青、紫
+                ctx.fillStyle = pointColors[index] || '#666666';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
                 

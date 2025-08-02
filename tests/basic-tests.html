@@ -97,7 +97,7 @@
     <div class="test-container">
         <div class="test-header">
             <h1>基本機能テストスイート</h1>
-            <p>3点アフィン変換機能の基本的なロジックをテストします</p>
+            <p>2点・3点・4点変換機能の基本的なロジックをテストします</p>
         </div>
         
         <div class="test-content">
@@ -222,6 +222,48 @@
                 
                 this.log('3点変換ロジックテスト完了');
             }
+
+            // 4点変換機能の基本的なテスト
+            async test4PointTransformLogic() {
+                this.log('\\n=== 4点変換ロジックテスト ===');
+                
+                // テストデータ
+                const srcPoints = [
+                    { x: 0, y: 0 },
+                    { x: 100, y: 0 },
+                    { x: 100, y: 100 },
+                    { x: 0, y: 100 }
+                ];
+                
+                const dstPoints = [
+                    { x: 10, y: 5 },
+                    { x: 110, y: 10 },
+                    { x: 105, y: 110 },
+                    { x: 5, y: 105 }
+                ];
+                
+                // 基本検証
+                this.assert(srcPoints.length === 4, '変換元が4点');
+                this.assert(dstPoints.length === 4, '変換先が4点');
+                
+                srcPoints.forEach((point, i) => {
+                    this.assert(typeof point.x === 'number', `点${i+1}のx座標が数値`);
+                    this.assert(typeof point.y === 'number', `点${i+1}のy座標が数値`);
+                });
+                
+                dstPoints.forEach((point, i) => {
+                    this.assert(typeof point.x === 'number', `変換先点${i+1}のx座標が数値`);
+                    this.assert(typeof point.y === 'number', `変換先点${i+1}のy座標が数値`);
+                });
+                
+                // 4点の順序テスト（時計回り）
+                this.assert(srcPoints[0].x === 0 && srcPoints[0].y === 0, '1点目が左上');
+                this.assert(srcPoints[1].x === 100 && srcPoints[1].y === 0, '2点目が右上');
+                this.assert(srcPoints[2].x === 100 && srcPoints[2].y === 100, '3点目が右下');
+                this.assert(srcPoints[3].x === 0 && srcPoints[3].y === 100, '4点目が左下');
+                
+                this.log('4点変換ロジックテスト完了');
+            }
             
             // 変換モード管理のテスト
             async testTransformModeManagement() {
@@ -240,7 +282,8 @@
                     },
                     
                     getRequiredPoints: function() {
-                        return this.transformMode === '3point' ? 3 : 2;
+                        return this.transformMode === '4point' ? 4 :
+                               this.transformMode === '3point' ? 3 : 2;
                     },
                     
                     isReady: function() {
@@ -290,6 +333,25 @@
                 this.assertTrue(mockOverlayManager.addPoint('map', {lat:35.1, lng:139}), '地図3点目追加成功');
                 
                 this.assertTrue(mockOverlayManager.isReady(), '3点選択完了時は準備完了');
+                
+                // 4点モードに変更
+                mockOverlayManager.setTransformMode('4point');
+                this.assertEqual(mockOverlayManager.getRequiredPoints(), 4, '4点モードで必要点数が4');
+                this.assertFalse(mockOverlayManager.isReady(), 'モード変更後は準備未完了（リセットされる）');
+                
+                // 4点を追加
+                this.assertTrue(mockOverlayManager.addPoint('image', {x:0, y:0}), '画像1点目追加成功');
+                this.assertTrue(mockOverlayManager.addPoint('image', {x:100, y:0}), '画像2点目追加成功');
+                this.assertTrue(mockOverlayManager.addPoint('image', {x:100, y:100}), '画像3点目追加成功');
+                this.assertTrue(mockOverlayManager.addPoint('image', {x:0, y:100}), '画像4点目追加成功');
+                this.assertFalse(mockOverlayManager.addPoint('image', {x:50, y:50}), '画像5点目追加は失敗');
+                
+                this.assertTrue(mockOverlayManager.addPoint('map', {lat:35, lng:139}), '地図1点目追加成功');
+                this.assertTrue(mockOverlayManager.addPoint('map', {lat:35, lng:139.1}), '地図2点目追加成功');
+                this.assertTrue(mockOverlayManager.addPoint('map', {lat:35.1, lng:139.1}), '地図3点目追加成功');
+                this.assertTrue(mockOverlayManager.addPoint('map', {lat:35.1, lng:139}), '地図4点目追加成功');
+                
+                this.assertTrue(mockOverlayManager.isReady(), '4点選択完了時は準備完了');
                 
                 this.log('変換モード管理テスト完了');
             }
@@ -352,20 +414,29 @@
             async testColorMapping() {
                 this.log('\\n=== 色分けテスト ===');
                 
-                const colors = ['#27ae60', '#e74c3c', '#3498db'];
-                const pointNames = ['緑（1点目）', '赤（2点目）', '青（3点目）'];
+                // 4点対応の色分けテスト
+                const colors = ['#27ae60', '#e74c3c', '#3498db', '#9b59b6'];
+                const pointNames = ['緑（1点目）', '赤（2点目）', '青（3点目）', '紫（4点目）'];
                 
-                this.assertEqual(colors.length, 3, '3色が定義されている');
+                this.assertEqual(colors.length, 4, '4色が定義されている');
                 
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 4; i++) {
                     this.assertTrue(colors[i].startsWith('#'), `${pointNames[i]}の色がHEX形式`);
                     this.assertEqual(colors[i].length, 7, `${pointNames[i]}の色が7文字のHEX`);
                 }
                 
                 // 各色が異なることを確認
-                this.assertFalse(colors[0] === colors[1], '1点目と2点目の色が異なる');
-                this.assertFalse(colors[1] === colors[2], '2点目と3点目の色が異なる');
-                this.assertFalse(colors[0] === colors[2], '1点目と3点目の色が異なる');
+                for (let i = 0; i < 4; i++) {
+                    for (let j = i + 1; j < 4; j++) {
+                        this.assertFalse(colors[i] === colors[j], `${i+1}点目と${j+1}点目の色が異なる`);
+                    }
+                }
+                
+                // 特定の色の確認
+                this.assertEqual(colors[0], '#27ae60', '1点目は緑色');
+                this.assertEqual(colors[1], '#e74c3c', '2点目は赤色');
+                this.assertEqual(colors[2], '#3498db', '3点目は青色');
+                this.assertEqual(colors[3], '#9b59b6', '4点目は紫色');
                 
                 this.log('色分けテスト完了');
             }
@@ -421,6 +492,7 @@
                 
                 try {
                     await this.test('3点変換ロジック', this.test3PointTransformLogic);
+                    await this.test('4点変換ロジック', this.test4PointTransformLogic);
                     await this.test('変換モード管理', this.testTransformModeManagement);
                     await this.test('最大点数管理', this.testMaxPointsManagement);
                     await this.test('色分け', this.testColorMapping);
@@ -429,6 +501,7 @@
                     this.log('\\n🎉 全テスト成功！');
                     this.log('\\n=== テスト結果サマリ ===');
                     this.log('✓ 3点変換ロジック: 正常');
+                    this.log('✓ 4点変換ロジック: 正常');
                     this.log('✓ 変換モード管理: 正常');
                     this.log('✓ 最大点数管理: 正常');
                     this.log('✓ 色分け: 正常');

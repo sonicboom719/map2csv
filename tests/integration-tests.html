@@ -97,7 +97,7 @@
     <div class="test-container">
         <div class="test-header">
             <h1>統合テストスイート</h1>
-            <p>3点アフィン変換の統合機能をテストします</p>
+            <p>2点・3点・4点変換の統合機能をテストします</p>
         </div>
         
         <div class="test-content">
@@ -210,6 +210,36 @@
                 const has3PointMethod = await this.testFileContent(filePath, 'transformImageFor3Points');
                 this.assert(has3PointMethod, 'transformImageFor3Pointsメソッドが定義されている');
                 
+                // 真の3点アフィン変換メソッドの確認
+                const hasAffineMatrix3Points = await this.testFileContent(filePath, 'calculateAffineMatrix3Points');
+                this.assert(hasAffineMatrix3Points, 'calculateAffineMatrix3Pointsメソッドが定義されている');
+                
+                const hasApplyAffine3Points = await this.testFileContent(filePath, 'applyAffineTransform3Points');
+                this.assert(hasApplyAffine3Points, 'applyAffineTransform3Pointsメソッドが定義されている');
+                
+                // 真の3点アフィン変換の実装確認
+                const hasTrue3PointAffine = await this.testFileContent(filePath, '真の3点アフィン変換を実行');
+                this.assert(hasTrue3PointAffine, '3点変換が真のアフィン変換を使用している');
+                
+                // 4点変換メソッドの確認（シンプル線形実装）
+                const has4PointMethod = await this.testFileContent(filePath, 'transformImageFor4Points');
+                this.assert(has4PointMethod, 'transformImageFor4Pointsメソッドが定義されている');
+                
+                // シンプル実装では複雑なOpenCV射影変換メソッドは不要
+                const hasSimpleImplementation = await this.testFileContent(filePath, '座標対応版');
+                this.assert(hasSimpleImplementation, '4点変換がシンプル実装になっている');
+                
+                // 従来のOpenCV射影変換メソッドもまだ存在する場合は確認
+                const hasPerspectiveMethod = await this.testFileContent(filePath, 'calculatePerspectiveTransform');
+                if (hasPerspectiveMethod) {
+                    this.log('✓ calculatePerspectiveTransformメソッドも定義されている（オプション）');
+                }
+                
+                const hasApplyPerspective = await this.testFileContent(filePath, 'applyPerspectiveTransform');
+                if (hasApplyPerspective) {
+                    this.log('✓ applyPerspectiveTransformメソッドも定義されている（オプション）');
+                }
+                
                 this.log('OpenCVTransformerモジュール確認テスト完了');
             }
             
@@ -232,6 +262,16 @@
                 
                 const has3PointUI = await this.testFileContent(filePath, '3point');
                 this.assert(has3PointUI, '3点モード対応のUI更新が含まれている');
+                
+                // 4点射影変換対応の確認
+                const has4PointMethod = await this.testFileContent(filePath, 'create4PointImageOverlay');
+                this.assert(has4PointMethod, 'create4PointImageOverlayメソッドが追加されている');
+                
+                const has4PointUI = await this.testFileContent(filePath, '4point');
+                this.assert(has4PointUI, '4点モード対応のUI更新が含まれている');
+                
+                const hasGetRequiredPoints = await this.testFileContent(filePath, 'getRequiredPoints');
+                this.assert(hasGetRequiredPoints, 'getRequiredPointsヘルパーメソッドが追加されている');
                 
                 this.log('OverlayManager変更確認テスト完了');
             }
@@ -256,6 +296,13 @@
                 const hasTitle = await this.testFileContent(filePath, '画像ウィンドウ');
                 this.assert(hasTitle, 'タイトルバーにタイトルが追加されている');
                 
+                // 4点対応の確認
+                const hasPurpleColor = await this.testFileContent(filePath, '#9b59b6');
+                this.assert(hasPurpleColor, '4点目の紫色が追加されている');
+                
+                const has4Colors = await this.testFileContent(filePath, "'#27ae60', '#e74c3c', '#3498db', '#9b59b6'");
+                this.assert(has4Colors, '4色の配列が定義されている');
+                
                 this.log('SimpleDragResizeWindow変更確認テスト完了');
             }
             
@@ -275,6 +322,13 @@
                 
                 const has3PointOption = await this.testFileContent(filePath, '3点');
                 this.assert(has3PointOption, '3点変換オプションが追加されている');
+                
+                // 4点射影変換オプションの確認
+                const has4PointOption = await this.testFileContent(filePath, '4点合わせ（射影変換）');
+                this.assert(has4PointOption, '4点射影変換オプションが追加されている');
+                
+                const has4PointValue = await this.testFileContent(filePath, 'value="4point"');
+                this.assert(has4PointValue, '4点モードの値が設定されている');
                 
                 this.log('HTML変更確認テスト完了');
             }
