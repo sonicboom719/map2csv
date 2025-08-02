@@ -151,14 +151,10 @@ class App {
     
     setupAddressSearch() {
         const addressInput = ErrorHandler.requireElement('addressInput');
-        const searchButton = ErrorHandler.requireElement('searchAddress');
         
         const searchAddress = async () => {
             const address = addressInput.value.trim();
             if (!address) return;
-            
-            searchButton.disabled = true;
-            searchButton.textContent = '検索中...';
             
             try {
                 await ErrorHandler.handleAsyncOperation(async () => {
@@ -195,15 +191,14 @@ class App {
             } catch (error) {
                 ErrorHandler.logError(error, 'Address search');
                 ErrorHandler.showUserError(error.message);
-            } finally {
-                searchButton.disabled = false;
-                searchButton.textContent = '地図を移動';
             }
         };
         
-        searchButton.addEventListener('click', searchAddress);
         addressInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') searchAddress();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchAddress();
+            }
         });
     }
     
