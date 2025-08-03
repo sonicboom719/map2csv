@@ -116,14 +116,9 @@
 			</div>
 			<div id="pinList" class="pin-list"></div>
 			<div style="margin-top: 15px;">
-				<label style="display: block; margin-bottom: 10px;">
-					都道府県:
-					<input type="text" id="prefectureInput" placeholder="例: 東京都" style="margin-top: 5px;">
-				</label>
-				<label style="display: block; margin-bottom: 15px;">
-					市区町村:
-					<input type="text" id="cityInput" placeholder="例: 千代田区" style="margin-top: 5px;">
-				</label>
+				<!-- 互換性のためのhidden inputs -->
+				<input type="hidden" id="prefectureInput">
+				<input type="hidden" id="cityInput">
 				<button id="exportCsv" class="btn-primary">CSVエクスポート</button>
 				<div style="margin-top: 10px; text-align: center;">
 					<a href="concat_csv.html" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">
@@ -134,7 +129,7 @@
 		</div>
 	</div>
 	
-	<!-- モーダル -->
+	<!-- ピン情報入力モーダル -->
 	<div id="pinModal" class="modal" style="display: none;">
 		<div class="modal-content">
 			<h3>ピン情報を入力</h3>
@@ -159,6 +154,32 @@
 			<div class="modal-buttons">
 				<button id="savePinInfo" style="flex: 1; height: 40px; background-color: #3498db; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer; margin: 0;">保存</button>
 				<button id="cancelPinInfo" style="flex: 1; height: 40px; background-color: #95a5a6; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer; margin: 0;">キャンセル</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- CSVエクスポート設定モーダル -->
+	<div id="csvExportModal" class="modal" style="display: none;">
+		<div class="modal-content">
+			<h3>📄 CSVエクスポート設定</h3>
+			<label>
+				都道府県:
+				<input type="text" id="exportPrefecture" placeholder="例: 東京都">
+			</label>
+			<label>
+				市区町村:
+				<input type="text" id="exportCity" placeholder="例: 千代田区">
+			</label>
+			<label>
+				ファイル名末尾 (_normalized以降):
+				<input type="text" id="exportSuffix" placeholder="例: _001" value="">
+			</label>
+			<div style="margin: 15px 0; padding: 10px; background-color: #f8f9fa; border-radius: 4px; font-size: 14px; color: #666;">
+				<strong>プレビュー:</strong> <span id="filenamePreview">sample_normalized.csv</span>
+			</div>
+			<div class="modal-buttons">
+				<button id="executeExport" class="btn-primary" style="flex: 1; height: 40px; background-color: #27ae60; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer; margin: 0;">エクスポートを実行</button>
+				<button id="cancelExport" style="flex: 1; height: 40px; background-color: #95a5a6; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer; margin: 0;">キャンセル</button>
 			</div>
 		</div>
 	</div>

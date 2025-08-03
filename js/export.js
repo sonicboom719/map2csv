@@ -3,13 +3,98 @@ export class CsvExporter {
         this.exportButton = options.exportButton;
         this.pinManager = options.pinManager;
         
+        // モーダル要素を取得
+        this.modal = document.getElementById('csvExportModal');
+        this.prefectureInput = document.getElementById('exportPrefecture');
+        this.cityInput = document.getElementById('exportCity');
+        this.suffixInput = document.getElementById('exportSuffix');
+        this.filenamePreview = document.getElementById('filenamePreview');
+        this.executeButton = document.getElementById('executeExport');
+        this.cancelButton = document.getElementById('cancelExport');
+        
         this.setupEventHandlers();
     }
     
     setupEventHandlers() {
+        // CSVエクスポートボタンクリックでモーダルを開く
         this.exportButton.addEventListener('click', () => {
+            this.openExportModal();
+        });
+        
+        // エクスポート実行ボタン
+        this.executeButton.addEventListener('click', () => {
             this.exportToCsv();
         });
+        
+        // キャンセルボタン
+        this.cancelButton.addEventListener('click', () => {
+            this.closeModal();
+        });
+        
+        // モーダル外クリックで閉じる
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.closeModal();
+            }
+        });
+        
+        // Escキーでモーダルを閉じる
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.modal.style.display !== 'none') {
+                this.closeModal();
+            }
+        });
+        
+        // 入力値変更でプレビューを更新
+        [this.cityInput, this.suffixInput].forEach(input => {
+            input.addEventListener('input', () => {
+                this.updateFilenamePreview();
+            });
+        });
+    }
+    
+    openExportModal() {
+        const pins = this.pinManager.getPins();
+        
+        if (pins.length === 0) {
+            alert('エクスポートするピンがありません。');
+            return;
+        }
+        
+        // 既存の都道府県・市区町村入力値を取得してプリセット
+        const currentPrefecture = document.getElementById('prefectureInput').value.trim();
+        const currentCity = document.getElementById('cityInput').value.trim();
+        
+        this.prefectureInput.value = currentPrefecture;
+        this.cityInput.value = currentCity;
+        
+        // ファイル名プレビューを更新
+        this.updateFilenamePreview();
+        
+        // モーダルを表示
+        this.modal.style.display = 'flex';
+        
+        // 最初の空の入力欄にフォーカス
+        if (!this.prefectureInput.value) {
+            this.prefectureInput.focus();
+        } else if (!this.cityInput.value) {
+            this.cityInput.focus();
+        } else {
+            this.suffixInput.focus();
+        }
+    }
+    
+    closeModal() {
+        this.modal.style.display = 'none';
+    }
+    
+    updateFilenamePreview() {
+        const city = this.cityInput.value.trim() || 'sample';
+        const suffix = this.suffixInput.value.trim();
+        
+        // _normalized + suffix.csv の形式
+        const filename = `${city}_normalized${suffix}.csv`;
+        this.filenamePreview.textContent = filename;
     }
     
     exportToCsv() {
@@ -20,9 +105,10 @@ export class CsvExporter {
             return;
         }
         
-        // 都道府県と市区町村を取得
-        const prefecture = document.getElementById('prefectureInput').value.trim();
-        const city = document.getElementById('cityInput').value.trim();
+        // モーダルから都道府県と市区町村を取得
+        const prefecture = this.prefectureInput.value.trim();
+        const city = this.cityInput.value.trim();
+        const suffix = this.suffixInput.value.trim();
         
         // CSVデータを作成
         const csvData = [
@@ -54,19 +140,10 @@ export class CsvExporter {
         const a = document.createElement('a');
         a.href = url;
         
-        // ファイル名を {city}_normalized_yyyymmddhhmmss.csv 形式にする
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const dateStr = `${year}${month}${day}${hours}${minutes}${seconds}`;
-        
+        // ファイル名を {city}_normalized{suffix}.csv 形式にする
         // cityが空の場合は "unknown" を使用
         const cityName = city || 'unknown';
-        a.download = `${cityName}_normalized_${dateStr}.csv`;
+        a.download = `${cityName}_normalized${suffix}.csv`;
         
         // ダウンロードを実行
         document.body.appendChild(a);
@@ -76,8 +153,7 @@ export class CsvExporter {
         // URLを解放
         URL.revokeObjectURL(url);
         
-        // 完了メッセージ
-        const message = `${pins.length}件のピン情報をCSVファイルとしてダウンロードしました。`;
-        alert(message);
+        // モーダルを閉じる
+        this.closeModal();
     }
 }

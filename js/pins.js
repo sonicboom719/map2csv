@@ -26,10 +26,16 @@ export class PinManager {
         // 自動連番チェックボックス
         this.autoNumberingCheckbox = ErrorHandler.requireElement('autoNumberingCheckbox');
         
+        // CSVエクスポートボタン
+        this.exportButton = ErrorHandler.requireElement('exportCsv');
+        
         // 次の自動連番番号
         this.nextAutoNumber = 1;
         
         this.setupEventHandlers();
+        
+        // 初期状態でボタンを無効化
+        this.updateExportButtonState();
     }
     
     setupEventHandlers() {
@@ -349,6 +355,7 @@ export class PinManager {
         }
         
         this.updatePinList();
+        this.updateExportButtonState();
         
         return pin;
     }
@@ -438,6 +445,7 @@ export class PinManager {
         }
         
         this.updatePinList();
+        this.updateExportButtonState();
     }
     
     // 自動連番を再計算（削除時の番号詰め）
@@ -633,6 +641,7 @@ export class PinManager {
         
         // UIを更新
         this.updatePinList();
+        this.updateExportButtonState();
         
         console.log('All pins cleared');
     }
@@ -654,5 +663,24 @@ export class PinManager {
             }
         });
         console.log('All pins shown');
+    }
+    
+    /**
+     * CSVエクスポートボタンの有効/無効状態を更新
+     */
+    updateExportButtonState() {
+        if (this.pins.length === 0) {
+            // ピンがない場合は無効化
+            this.exportButton.disabled = true;
+            this.exportButton.style.opacity = '0.5';
+            this.exportButton.style.cursor = 'not-allowed';
+            this.exportButton.title = 'エクスポートするピンがありません';
+        } else {
+            // ピンがある場合は有効化
+            this.exportButton.disabled = false;
+            this.exportButton.style.opacity = '1';
+            this.exportButton.style.cursor = 'pointer';
+            this.exportButton.title = '';
+        }
     }
 }
