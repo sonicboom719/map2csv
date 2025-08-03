@@ -8,7 +8,7 @@ export const CONFIG = {
         /** 画像表示の最大サイズ（ピクセル） */
         MAX_IMAGE_DISPLAY_SIZE: 600,
         /** リサイズハンドルのサイズ（ピクセル） */
-        CORNER_RESIZE_SIZE: 20,
+        CORNER_RESIZE_SIZE: 8,
         /** クリック判定の許容範囲（ピクセル） */
         CLICK_TOLERANCE: 15,
         /** マーカーのサイズ設定 */

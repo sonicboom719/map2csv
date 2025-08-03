@@ -1,3 +1,5 @@
+import { CONFIG } from './config.js';
+
 // シンプルなドラッグ&リサイズウィンドウクラス
 export class SimpleDragResizeWindow {
     constructor(imageData, onPointClick, onClose, maxPoints = 2) {
@@ -143,7 +145,7 @@ export class SimpleDragResizeWindow {
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const cornerSize = 20; // 角の判定エリアサイズ
+        const cornerSize = CONFIG.UI.CORNER_RESIZE_SIZE; // 角の判定エリアサイズ（設定から取得）
         
         // 左上
         if (x <= cornerSize && y <= cornerSize) {

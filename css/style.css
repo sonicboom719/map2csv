@@ -245,6 +245,17 @@ button {
     background-color: #7f8c8d;
 }
 
+/* 緑色ボタン（CSVインポート用） */
+.btn-green {
+    background-color: #27ae60;
+    color: white;
+    width: 100%;
+}
+
+.btn-green:hover {
+    background-color: #229954;
+}
+
 .btn-small {
     padding: 5px 10px;
     font-size: 12px;

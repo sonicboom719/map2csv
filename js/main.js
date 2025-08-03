@@ -39,6 +39,9 @@ class App {
         /** @type {InputHistoryManager|null} 入力履歴管理インスタンス */
         this.inputHistoryManager = null;
         
+        /** @type {boolean} 右サイドバーの開閉状態 */
+        this.isRightSidebarOpen = false;
+        
         /** @type {Object} 初期化オプション */
         this.options = {
             skipInputHistory: false,
@@ -308,23 +311,11 @@ class App {
         const toggleButton = ErrorHandler.requireElement('rightSidebarToggle');
         const rightSidebar = ErrorHandler.requireElement('rightSidebar');
         
-        let isOpen = false; // 初期状態は閉じている
-        
         toggleButton.addEventListener('click', () => {
-            if (isOpen) {
+            if (this.isRightSidebarOpen) {
                 this.hideRightSidebar();
             } else {
                 this.showRightSidebar();
-            }
-            isOpen = !isOpen;
-            
-            // ボタンの状態を更新
-            toggleButton.classList.toggle('open', isOpen);
-            toggleButton.title = isOpen ? 'ピン管理パネルを閉じる' : 'ピン管理パネルを開く';
-            
-            // オーバーレイマネージャーに状態変更を通知
-            if (this.overlayManager) {
-                this.overlayManager.onRightSidebarToggle();
             }
         });
     }
@@ -370,6 +361,9 @@ class App {
         toggleButton.classList.add('open');
         toggleButton.title = 'ピン管理パネルを閉じる';
         
+        // 状態を更新
+        this.isRightSidebarOpen = true;
+        
         // オーバーレイマネージャーに状態変更を通知
         if (this.overlayManager) {
             this.overlayManager.onRightSidebarToggle();
@@ -386,6 +380,9 @@ class App {
         rightSidebar.classList.remove('visible');
         toggleButton.classList.remove('open');
         toggleButton.title = 'ピン管理パネルを開く';
+        
+        // 状態を更新
+        this.isRightSidebarOpen = false;
         
         // オーバーレイマネージャーに状態変更を通知
         if (this.overlayManager) {

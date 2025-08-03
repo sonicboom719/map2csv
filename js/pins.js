@@ -39,6 +39,7 @@ export class PinManager {
         
         // 初期状態でボタンを無効化
         this.updateExportButtonState();
+        this.updateClearAllButtonState();
     }
     
     setupEventHandlers() {
@@ -318,6 +319,8 @@ export class PinManager {
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             if (!isDragging) {
+                // ピンリスト内の対応するタイルにスクロール
+                this.scrollToPinInList(pin.id);
                 this.openModal(pin);
             }
             isDragging = false;
@@ -366,12 +369,16 @@ export class PinManager {
         
         this.updatePinList();
         this.updateExportButtonState();
+        this.updateClearAllButtonState();
         
         return pin;
     }
     
     openModal(pin) {
         this.currentPin = pin;
+        
+        // 対応するピンタイルを中央にスクロール
+        this.scrollToPinInList(pin.id);
         
         // 自動連番が有効かどうかで表示を変更
         if (this.autoNumberingCheckbox.checked) {
@@ -456,6 +463,7 @@ export class PinManager {
         
         this.updatePinList();
         this.updateExportButtonState();
+        this.updateClearAllButtonState();
     }
     
     // 自動連番を再計算（削除時の番号詰め）
@@ -669,8 +677,8 @@ export class PinManager {
      * 確認ダイアログ付きで全ピンをクリア
      */
     handleClearAllPins() {
-        if (this.pins.length === 0) {
-            alert('クリアするピンがありません。');
+        // ボタンが無効化されている場合は何もしない（念のため）
+        if (this.clearAllPinsButton.disabled) {
             return;
         }
         
@@ -697,6 +705,7 @@ export class PinManager {
         // UIを更新
         this.updatePinList();
         this.updateExportButtonState();
+        this.updateClearAllButtonState();
         
         console.log('All pins cleared');
     }
@@ -743,6 +752,43 @@ export class PinManager {
     }
     
     /**
+     * ピンリスト内の指定されたピンタイルにスクロール
+     */
+    scrollToPinInList(pinId) {
+        const pinElement = this.pinList.querySelector(`[data-pin-id="${pinId}"]`);
+        if (!pinElement) return;
+        
+        // ピンリストコンテナの情報を取得
+        const listRect = this.pinList.getBoundingClientRect();
+        const pinRect = pinElement.getBoundingClientRect();
+        
+        // ピンタイルがリスト内で見えているかチェック
+        const isVisible = pinRect.top >= listRect.top && pinRect.bottom <= listRect.bottom;
+        
+        if (!isVisible) {
+            // ピンタイルをリストの中央に表示するようにスクロール
+            const pinOffsetTop = pinElement.offsetTop;
+            const pinHeight = pinElement.offsetHeight;
+            const listHeight = this.pinList.offsetHeight;
+            
+            // スクロール位置を計算（ピンタイルが中央に来るように）
+            const scrollPosition = pinOffsetTop - (listHeight / 2) + (pinHeight / 2);
+            
+            // スムーズにスクロール
+            this.pinList.scrollTo({
+                top: scrollPosition,
+                behavior: 'smooth'
+            });
+        }
+        
+        // ピンタイルを一時的にハイライト
+        this.highlightPinInList(pinId, true);
+        setTimeout(() => {
+            this.highlightPinInList(pinId, false);
+        }, 2000);
+    }
+    
+    /**
      * CSVエクスポートボタンの有効/無効状態を更新
      */
     updateExportButtonState() {
@@ -758,6 +804,25 @@ export class PinManager {
             this.exportButton.style.opacity = '1';
             this.exportButton.style.cursor = 'pointer';
             this.exportButton.title = '';
+        }
+    }
+    
+    /**
+     * 全ピンクリアボタンの有効/無効状態を更新
+     */
+    updateClearAllButtonState() {
+        if (this.pins.length === 0) {
+            // ピンがない場合は無効化
+            this.clearAllPinsButton.disabled = true;
+            this.clearAllPinsButton.style.opacity = '0.5';
+            this.clearAllPinsButton.style.cursor = 'not-allowed';
+            this.clearAllPinsButton.title = 'クリアするピンがありません';
+        } else {
+            // ピンがある場合は有効化
+            this.clearAllPinsButton.disabled = false;
+            this.clearAllPinsButton.style.opacity = '1';
+            this.clearAllPinsButton.style.cursor = 'pointer';
+            this.clearAllPinsButton.title = '';
         }
     }
 }
