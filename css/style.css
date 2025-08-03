@@ -96,6 +96,16 @@ body {
     transform: rotate(180deg);
 }
 
+/* 左サイドバー用トグルボタンは逆の回転方向 */
+.sidebar-toggle.left.open .arrow {
+    transform: rotate(0deg);
+}
+
+/* 左サイドバーが閉じている時（openクラスがない時） */
+.sidebar-toggle.left:not(.open) .arrow {
+    transform: rotate(180deg);
+}
+
 .sidebar h1 {
     font-size: 24px;
     margin-bottom: 20px;
@@ -275,7 +285,6 @@ button {
 
 .pin-item:hover {
     background-color: #e3f2fd;
-    transform: translateX(5px);
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 

@@ -544,12 +544,10 @@ export class PinManager {
         if (pinElement) {
             if (highlight) {
                 pinElement.style.backgroundColor = '#ffe4b5';
-                pinElement.style.transform = 'translateX(5px)';
                 pinElement.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
                 pinElement.style.transition = 'all 0.3s ease';
             } else {
                 pinElement.style.backgroundColor = '';
-                pinElement.style.transform = '';
                 pinElement.style.boxShadow = '';
             }
         }

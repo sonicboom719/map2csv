@@ -60,14 +60,6 @@
 			<button id="applyTransform" class="btn-primary" disabled>位置合わせを実行</button>
 			<button id="resetPoints" class="btn-secondary">選択をリセット</button>
 		</div>
-		
-		<!-- CSV結合ツールリンク -->
-		<div class="section" style="text-align: center; margin-top: 20px;">
-			<a href="concat_csv.html" style="color: #3498db; text-decoration: none; font-size: 14px; display: inline-block; padding: 10px; border: 1px solid #3498db; border-radius: 4px;">
-				→ CSV結合ツールへ
-			</a>
-		</div>
-		
 	</div>
 	
 	<div class="container">
@@ -95,8 +87,8 @@
 	</div>
 	
 	<!-- 左サイドバー用トグルボタン -->
-	<button id="leftSidebarToggle" class="sidebar-toggle left" title="アップロード・設定パネルを閉じる">
-		<span class="arrow">›</span>
+	<button id="leftSidebarToggle" class="sidebar-toggle left open" title="アップロード・設定パネルを閉じる">
+		<span class="arrow">‹</span>
 	</button>
 	
 	<!-- 右サイドバー用トグルボタン -->
@@ -132,10 +124,10 @@
 					市区町村:
 					<input type="text" id="cityInput" placeholder="例: 千代田区" style="margin-top: 5px;">
 				</label>
-				<button id="exportCsv" class="btn-primary">正規化CSVダウンロード</button>
+				<button id="exportCsv" class="btn-primary">CSVエクスポート</button>
 				<div style="margin-top: 10px; text-align: center;">
-					<a href="concat_csv.html" style="color: #3498db; text-decoration: none; font-size: 14px;">
-						→ 複数の正規化CSVファイルを結合する
+					<a href="concat_csv.html" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">
+						→ 複数のCSVファイルを結合する
 					</a>
 				</div>
 			</div>
