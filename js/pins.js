@@ -29,6 +29,9 @@ export class PinManager {
         // CSVエクスポートボタン
         this.exportButton = ErrorHandler.requireElement('exportCsv');
         
+        // 全ピンクリアボタン
+        this.clearAllPinsButton = ErrorHandler.requireElement('clearAllPins');
+        
         // 次の自動連番番号
         this.nextAutoNumber = 1;
         
@@ -75,6 +78,11 @@ export class PinManager {
         // ピン表示タイプ変更時の処理
         this.pinDisplayTypeSelect.addEventListener('change', () => {
             this.updateAllPinMarkers();
+        });
+        
+        // 全ピンクリアボタンイベント
+        this.clearAllPinsButton.addEventListener('click', () => {
+            this.handleClearAllPins();
         });
     }
     
@@ -545,6 +553,11 @@ export class PinManager {
                 this.highlightPinInList(pin.id, false);
             });
             
+            // ピンリストアイテムのクリックイベント
+            div.addEventListener('click', () => {
+                this.centerMapOnPin(pin);
+            });
+            
             this.pinList.appendChild(div);
         });
     }
@@ -652,6 +665,21 @@ export class PinManager {
         });
     }
     
+    /**
+     * 確認ダイアログ付きで全ピンをクリア
+     */
+    handleClearAllPins() {
+        if (this.pins.length === 0) {
+            alert('クリアするピンがありません。');
+            return;
+        }
+        
+        const confirmed = confirm(`すべてのピン（${this.pins.length}個）を削除しますか？\n\nこの操作は取り消せません。`);
+        if (confirmed) {
+            this.clearAllPins();
+        }
+    }
+    
     clearAllPins() {
         // 全てのマーカーを地図から削除
         this.pins.forEach(pin => {
@@ -690,6 +718,28 @@ export class PinManager {
             }
         });
         console.log('All pins shown');
+    }
+    
+    /**
+     * ピンの位置にマップを移動（範囲外の場合のみ）
+     */
+    centerMapOnPin(pin) {
+        const bounds = this.map.getBounds();
+        const pinLatLng = pin.latlng;
+        
+        // ピンが現在の表示範囲外にあるかチェック
+        if (!bounds.contains(pinLatLng)) {
+            // 範囲外の場合、アニメーション付きでそのピンを中心にマップを移動
+            this.map.flyTo(pinLatLng, this.map.getZoom(), {
+                duration: 1.5 // 1.5秒のアニメーション
+            });
+        }
+        
+        // ピンを一時的にハイライト
+        this.highlightPinOnMap(pin.id, true);
+        setTimeout(() => {
+            this.highlightPinOnMap(pin.id, false);
+        }, 2000); // 2秒後にハイライト解除
     }
     
     /**

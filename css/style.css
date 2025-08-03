@@ -44,15 +44,37 @@ body {
     height: 100vh;
     background: white;
     box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-    overflow-y: auto;
-    padding: 20px;
     z-index: 1000;
     transition: transform 0.3s ease;
     transform: translateX(100%);
+    display: flex;
+    flex-direction: column;
 }
 
 .right-sidebar.visible {
     transform: translateX(0);
+}
+
+/* 右サイドバーの上部コンテンツ */
+.right-sidebar-content {
+    flex: 1;
+    padding: 20px 20px 10px 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ピンセクションの固定ヘッダー部分 */
+.pin-section-header {
+    flex-shrink: 0;
+    margin-bottom: 5px;
+}
+
+/* 右サイドバーの下部ボタンセクション（固定） */
+.right-sidebar-bottom {
+    padding: 10px 20px 20px 20px;
+    background: white;
+    flex-shrink: 0;
 }
 
 /* サイドバートグルボタン */
@@ -265,17 +287,44 @@ button {
 
 /* ピンリスト */
 .pin-list {
-    max-height: calc(100vh - 450px);
+    flex: 1;
     overflow-y: auto;
-    margin-bottom: 15px;
-    min-height: 100px;
+    margin-bottom: 2px;
+    margin-top: 0;
+    min-height: 120px;
+    max-height: none;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 8px;
+    background-color: #fafafa;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* ピンリストのスクロールバーカスタマイズ */
+.pin-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.pin-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.pin-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.pin-list::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
 
 .pin-item {
-    background-color: #f8f9fa;
-    padding: 6px;
-    margin-bottom: 8px;
+    background-color: white;
+    padding: 8px;
+    margin-bottom: 6px;
     border-radius: 4px;
+    border: 1px solid #e8e8e8;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -285,7 +334,12 @@ button {
 
 .pin-item:hover {
     background-color: #e3f2fd;
+    border-color: #3498db;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.pin-item:last-child {
+    margin-bottom: 0;
 }
 
 .pin-info {

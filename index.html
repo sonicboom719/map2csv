@@ -98,34 +98,42 @@
 	
 	<!-- 右サイドパネル -->
 	<div class="right-sidebar" id="rightSidebar">
-		<!-- ピン管理セクション -->
-		<div class="section" id="pinSection">
-			<h2>4. ピンを配置</h2>
-			<p class="info">地図上をCLICKでピン配置、長押しでピン配置と編集、既存ピンはCLICKで編集</p>
-			<div style="margin: 10px 0;">
-				<label style="display: flex; align-items: center; font-size: 14px;">
-					<input type="checkbox" id="autoNumberingCheckbox" checked style="margin-right: 8px;">
-					ピン番号を自動で連番付与する
-				</label>
-			</div>
-			<div style="margin: 10px 0;">
-				<select id="pinDisplayType" style="padding: 5px; font-size: 14px;">
-					<option value="displayNumber">ピン番号をピンに表示</option>
-					<option value="pinNumber">掲示場番号をピンに表示</option>
-				</select>
-			</div>
-			<div id="pinList" class="pin-list"></div>
-			<div style="margin-top: 15px;">
-				<!-- 互換性のためのhidden inputs -->
-				<input type="hidden" id="prefectureInput">
-				<input type="hidden" id="cityInput">
-				<button id="exportCsv" class="btn-primary">CSVエクスポート</button>
-				<button id="importCsv" class="btn-secondary" style="margin-top: 10px;">CSVインポート</button>
-				<div style="margin-top: 10px; text-align: center;">
-					<a href="concat_csv.html" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">
-						→ 複数のCSVファイルを結合する
-					</a>
+		<!-- 上部コンテンツ: ピン管理セクション -->
+		<div class="right-sidebar-content">
+			<!-- 固定ヘッダー部分 -->
+			<div class="pin-section-header" id="pinSection">
+				<h2>4. ピンを配置</h2>
+				<p class="info">地図上をCLICKでピン配置、長押しでピン配置と編集、既存ピンはCLICKで編集</p>
+				<div style="margin: 10px 0;">
+					<label style="display: flex; align-items: center; font-size: 14px;">
+						<input type="checkbox" id="autoNumberingCheckbox" checked style="margin-right: 8px;">
+						ピン番号を自動で連番付与する
+					</label>
 				</div>
+				<div style="margin: 10px 0;">
+					<select id="pinDisplayType" style="padding: 5px; font-size: 14px;">
+						<option value="displayNumber">ピン番号をピンに表示</option>
+						<option value="pinNumber">掲示場番号をピンに表示</option>
+					</select>
+				</div>
+			</div>
+			
+			<!-- スクロール可能なピンリスト部分 -->
+			<div id="pinList" class="pin-list"></div>
+		</div>
+		
+		<!-- 下部固定: ボタンセクション -->
+		<div class="right-sidebar-bottom">
+			<!-- 互換性のためのhidden inputs -->
+			<input type="hidden" id="prefectureInput">
+			<input type="hidden" id="cityInput">
+			<button id="exportCsv" class="btn-primary">CSVエクスポート</button>
+			<button id="importCsv" class="btn-secondary" style="margin-top: 10px;">CSVインポート</button>
+			<button id="clearAllPins" class="btn-small" style="margin-top: 10px; width: 100%; background-color: #e74c3c;">全ピンクリア</button>
+			<div style="margin-top: 10px; text-align: center;">
+				<a href="concat_csv.html" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">
+					→ 複数のCSVファイルを結合する
+				</a>
 			</div>
 		</div>
 	</div>
