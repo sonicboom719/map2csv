@@ -20,6 +20,15 @@ export class PinManager {
         this.pinIdCounter = 1;
         this.inputHistoryManager = options.inputHistoryManager;
         
+        // ピン表示タイプのプルダウン
+        this.pinDisplayTypeSelect = ErrorHandler.requireElement('pinDisplayType');
+        
+        // 自動連番チェックボックス
+        this.autoNumberingCheckbox = ErrorHandler.requireElement('autoNumberingCheckbox');
+        
+        // 次の自動連番番号
+        this.nextAutoNumber = 1;
+        
         this.setupEventHandlers();
     }
     
@@ -56,9 +65,23 @@ export class PinManager {
         
         // プルダウンメニューに選択肢を追加
         this.initializePinNumberDropdown();
+        
+        // ピン表示タイプ変更時の処理
+        this.pinDisplayTypeSelect.addEventListener('change', () => {
+            this.updateAllPinMarkers();
+        });
     }
     
     initializePinNumberDropdown() {
+        // 既存のオプションをクリア
+        this.pinDisplayNumberInput.innerHTML = '';
+        
+        // デフォルトオプションを追加
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '選択してください(省略可)';
+        this.pinDisplayNumberInput.appendChild(defaultOption);
+        
         // 設定から最大番号を取得して選択肢を追加
         for (let i = 1; i <= CONFIG.PINS.MAX_DISPLAY_NUMBER; i++) {
             const option = document.createElement('option');
@@ -79,18 +102,30 @@ export class PinManager {
         this.map.off('click', this.mapClickHandler);
         this.map.off('mousedown', this.mapMouseDownHandler);
         this.map.off('mouseup', this.mapMouseUpHandler);
+        this.map.off('dblclick', this.mapDblClickHandler);
+        this.map.off('dragstart', this.mapDragStartHandler);
+        this.map.off('dragend', this.mapDragEndHandler);
         
         // 長押し用のタイマー
         let longPressTimer = null;
         let mouseDownLatLng = null;
         
+        // ダブルクリック検出用
+        let clickTimer = null;
+        let isDoubleClick = false;
+        
+        // ドラッグ検出用
+        let isMapDragging = false;
+        
         // マウスダウンイベントハンドラー
         this.mapMouseDownHandler = (e) => {
-            if (this.enabled) {
+            if (this.enabled && !isMapDragging) {
                 mouseDownLatLng = e.latlng;
                 longPressTimer = setTimeout(() => {
-                    // 長押し時：ピンを追加して編集画面を開く
-                    const pin = this.addPin(mouseDownLatLng, true); // 第2引数でモーダルを開くかどうか指定
+                    // 長押し時：ドラッグしていない場合のみピンを追加して編集画面を開く
+                    if (!isMapDragging) {
+                        const pin = this.addPin(mouseDownLatLng, true); // 第2引数でモーダルを開くかどうか指定
+                    }
                 }, 500); // 500ms長押し
             }
         };
@@ -105,16 +140,74 @@ export class PinManager {
         
         // クリックイベントハンドラー（通常クリック時）
         this.mapClickHandler = (e) => {
-            if (this.enabled && longPressTimer === null) {
-                // 通常クリック：ピンを追加するが編集画面は開かない
-                this.addPin(e.latlng, false);
+            if (!this.enabled || longPressTimer !== null || isDoubleClick || isMapDragging) {
+                return;
             }
+            
+            // 既にクリックタイマーが動いている場合はダブルクリックと判定
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                isDoubleClick = true;
+                // ダブルクリックフラグを少し後にリセット
+                setTimeout(() => {
+                    isDoubleClick = false;
+                }, 500);
+                return;
+            }
+            
+            // シングルクリックの処理を遅延させてダブルクリックを検出
+            clickTimer = setTimeout(() => {
+                clickTimer = null;
+                if (!isDoubleClick && this.enabled && longPressTimer === null && !isMapDragging) {
+                    // シングルクリック確定：ドラッグしていない場合のみピンを追加するが編集画面は開かない
+                    this.addPin(e.latlng, false);
+                }
+            }, 250); // 250ms待機
+        };
+        
+        // ダブルクリックイベントハンドラー（ピン配置を防ぐ）
+        this.mapDblClickHandler = (e) => {
+            // ダブルクリックフラグを設定
+            isDoubleClick = true;
+            
+            // クリックタイマーをクリア
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+                clickTimer = null;
+            }
+            
+            // フラグを少し後にリセット
+            setTimeout(() => {
+                isDoubleClick = false;
+            }, 500);
+        };
+        
+        // 地図ドラッグ開始イベントハンドラー
+        this.mapDragStartHandler = (e) => {
+            isMapDragging = true;
+            // ドラッグ開始時に長押しタイマーをクリア
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
+        
+        // 地図ドラッグ終了イベントハンドラー
+        this.mapDragEndHandler = (e) => {
+            // ドラッグ終了を少し遅延してリセット（クリックイベントとの競合を避ける）
+            setTimeout(() => {
+                isMapDragging = false;
+            }, 100);
         };
         
         // イベントリスナーを設定
         this.map.on('mousedown', this.mapMouseDownHandler);
         this.map.on('mouseup', this.mapMouseUpHandler);
         this.map.on('click', this.mapClickHandler);
+        this.map.on('dblclick', this.mapDblClickHandler);
+        this.map.on('dragstart', this.mapDragStartHandler);
+        this.map.on('dragend', this.mapDragEndHandler);
     }
     
     disable() {
@@ -134,6 +227,15 @@ export class PinManager {
         if (this.mapMouseUpHandler) {
             this.map.off('mouseup', this.mapMouseUpHandler);
         }
+        if (this.mapDblClickHandler) {
+            this.map.off('dblclick', this.mapDblClickHandler);
+        }
+        if (this.mapDragStartHandler) {
+            this.map.off('dragstart', this.mapDragStartHandler);
+        }
+        if (this.mapDragEndHandler) {
+            this.map.off('dragend', this.mapDragEndHandler);
+        }
     }
     
     addPin(latlng, openModal = false) {
@@ -147,21 +249,62 @@ export class PinManager {
             marker: null
         };
         
-        // マーカーを作成（初期は番号なし）
+        // 自動連番が有効な場合、ピン番号を自動設定
+        if (this.autoNumberingCheckbox.checked) {
+            pin.displayNumber = this.nextAutoNumber.toString();
+            this.nextAutoNumber++;
+        }
+        
+        // マーカーを作成（自動連番がある場合は番号付き）
+        const displayNumber = this.getMarkerDisplayNumber(pin);
+        const htmlContent = displayNumber ? 
+            `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>` : 
+            '<div class="pin-marker"></div>';
+        
         const marker = L.marker(latlng, {
             icon: L.divIcon({
                 className: 'custom-marker-with-number',
-                html: '<div class="pin-marker"></div>',
-                iconSize: CONFIG.UI.MARKER_SIZES.DEFAULT,
-                iconAnchor: [10, 10]
+                html: htmlContent,
+                iconSize: displayNumber ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT,
+                iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
             }),
             draggable: true
         }).addTo(this.map);
         
-        // 既存ピンはクリックで編集画面を開く
+        // 既存ピンのイベント用変数
+        let isDragging = false;
+        let markerMouseDownTimer = null;
+        
+        // マーカーのマウスダウン（長押し検出用）
+        marker.on('mousedown', (e) => {
+            L.DomEvent.stopPropagation(e);
+            isDragging = false;
+            
+            // 長押しタイマーを開始
+            markerMouseDownTimer = setTimeout(() => {
+                if (!isDragging) {
+                    // ドラッグしていない場合のみ編集画面を開く
+                    this.openModal(pin);
+                }
+            }, 500); // 500ms長押し
+        });
+        
+        // マーカーのマウスアップ
+        marker.on('mouseup', (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (markerMouseDownTimer) {
+                clearTimeout(markerMouseDownTimer);
+                markerMouseDownTimer = null;
+            }
+        });
+        
+        // 既存ピンはクリックで編集画面を開く（ドラッグしていない場合）
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
-            this.openModal(pin);
+            if (!isDragging) {
+                this.openModal(pin);
+            }
+            isDragging = false;
         });
         
         // マウスオーバー/アウトイベント
@@ -171,12 +314,23 @@ export class PinManager {
         });
         
         marker.on('mouseout', () => {
+            // マウスアウト時にも長押しタイマーをクリア
+            if (markerMouseDownTimer) {
+                clearTimeout(markerMouseDownTimer);
+                markerMouseDownTimer = null;
+            }
             this.highlightPinInList(pin.id, false);
             this.highlightPinOnMap(pin.id, false);
         });
         
         // ドラッグイベント
         marker.on('dragstart', () => {
+            isDragging = true;
+            // ドラッグ開始時に長押しタイマーをクリア
+            if (markerMouseDownTimer) {
+                clearTimeout(markerMouseDownTimer);
+                markerMouseDownTimer = null;
+            }
             this.highlightPinInList(pin.id, true);
         });
         
@@ -201,7 +355,25 @@ export class PinManager {
     
     openModal(pin) {
         this.currentPin = pin;
-        this.pinDisplayNumberInput.value = pin.displayNumber || '';
+        
+        // 自動連番が有効かどうかで表示を変更
+        if (this.autoNumberingCheckbox.checked) {
+            // プルダウンを無効化して「自動付与」を表示
+            this.pinDisplayNumberInput.innerHTML = '<option value="auto">自動付与 (' + pin.displayNumber + ')</option>';
+            this.pinDisplayNumberInput.value = 'auto';
+            this.pinDisplayNumberInput.disabled = true;
+            this.pinDisplayNumberInput.style.backgroundColor = '#f0f0f0';
+            this.pinDisplayNumberInput.style.color = '#666';
+        } else {
+            // 通常のプルダウンに戻す
+            this.pinDisplayNumberInput.disabled = false;
+            this.pinDisplayNumberInput.style.backgroundColor = '';
+            this.pinDisplayNumberInput.style.color = '';
+            // 元のオプションを復元
+            this.initializePinNumberDropdown();
+            this.pinDisplayNumberInput.value = pin.displayNumber || '';
+        }
+        
         this.pinNumberInput.value = pin.number || '';
         this.pinNameInput.value = pin.name || '';
         this.pinMemoInput.value = pin.memo || '';
@@ -214,7 +386,12 @@ export class PinManager {
             }, 100);
         }
         
-        this.pinDisplayNumberInput.focus();
+        // 自動連番が設定されている場合はフォーカスを掲示場番号に
+        if (this.autoNumberingCheckbox.checked) {
+            this.pinNumberInput.focus();
+        } else {
+            this.pinDisplayNumberInput.focus();
+        }
     }
     
     closeModal() {
@@ -230,23 +407,18 @@ export class PinManager {
     savePinInfo() {
         if (!this.currentPin) return;
         
-        this.currentPin.displayNumber = this.pinDisplayNumberInput.value.trim();
+        // 自動連番が有効な場合は、表示用番号は変更しない（元の値を保持）
+        if (!this.autoNumberingCheckbox.checked && this.pinDisplayNumberInput.value !== 'auto') {
+            this.currentPin.displayNumber = this.pinDisplayNumberInput.value.trim();
+        }
+        // 自動連番の場合、displayNumberは既に設定済みなので変更しない
+        
         this.currentPin.number = this.pinNumberInput.value.trim();
         this.currentPin.name = this.pinNameInput.value.trim();
         this.currentPin.memo = this.pinMemoInput.value.trim();
         
-        // マーカーの表示を更新（表示用番号付き）
-        const displayNumber = this.currentPin.displayNumber;
-        const htmlContent = displayNumber ? 
-            `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>` : 
-            '<div class="pin-marker"></div>';
-            
-        this.currentPin.marker.setIcon(L.divIcon({
-            className: 'custom-marker-with-number',
-            html: htmlContent,
-            iconSize: displayNumber ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT,
-            iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
-        }));
+        // マーカーの表示を更新
+        this.updatePinMarker(this.currentPin);
         
         this.updatePinList();
         this.closeModal();
@@ -260,7 +432,27 @@ export class PinManager {
         this.map.removeLayer(pin.marker);
         this.pins.splice(pinIndex, 1);
         
+        // 自動連番が有効で、削除したピンが連番を持っていた場合は再連番
+        if (this.autoNumberingCheckbox.checked && pin.displayNumber) {
+            this.recalculateAutoNumbers();
+        }
+        
         this.updatePinList();
+    }
+    
+    // 自動連番を再計算（削除時の番号詰め）
+    recalculateAutoNumbers() {
+        let number = 1;
+        this.pins.forEach(pin => {
+            if (pin.displayNumber) {
+                pin.displayNumber = number.toString();
+                number++;
+                // マーカーも更新
+                this.updatePinMarker(pin);
+            }
+        });
+        // 次の番号を更新
+        this.nextAutoNumber = number;
     }
     
     editPin(pinId) {
@@ -395,6 +587,38 @@ export class PinManager {
         }));
     }
     
+    // マーカーの表示番号を取得
+    getMarkerDisplayNumber(pin) {
+        const displayType = this.pinDisplayTypeSelect.value;
+        if (displayType === 'displayNumber') {
+            return pin.displayNumber;
+        } else {
+            return pin.number;
+        }
+    }
+    
+    // 個別のピンマーカーを更新
+    updatePinMarker(pin) {
+        const displayNumber = this.getMarkerDisplayNumber(pin);
+        const htmlContent = displayNumber ? 
+            `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>` : 
+            '<div class="pin-marker"></div>';
+            
+        pin.marker.setIcon(L.divIcon({
+            className: 'custom-marker-with-number',
+            html: htmlContent,
+            iconSize: displayNumber ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT,
+            iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
+        }));
+    }
+    
+    // 全てのピンマーカーを更新
+    updateAllPinMarkers() {
+        this.pins.forEach(pin => {
+            this.updatePinMarker(pin);
+        });
+    }
+    
     clearAllPins() {
         // 全てのマーカーを地図から削除
         this.pins.forEach(pin => {
@@ -405,6 +629,9 @@ export class PinManager {
         
         // ピン配列をクリア
         this.pins = [];
+        
+        // 自動連番カウンターをリセット
+        this.nextAutoNumber = 1;
         
         // UIを更新
         this.updatePinList();

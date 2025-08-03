@@ -147,6 +147,13 @@ class App {
             console.error('ペースト機能設定失敗:', error);
             throw error;
         }
+        
+        try {
+            this.setupRightSidebarToggle();
+        } catch (error) {
+            console.error('右サイドバートグル設定失敗:', error);
+            throw error;
+        }
     }
     
     setupAddressSearch() {
@@ -240,10 +247,72 @@ class App {
      * ピンマネージャーを有効化し、右サイドバーを表示します
      */
     handleOverlayApplied() {
-        // オーバーレイが適用されたら右サイドバーとピンセクションを表示
-        document.getElementById('rightSidebar').style.display = 'block';
+        // オーバーレイが適用されたら右サイドバーを表示可能にして、ピンセクションを表示
+        this.showRightSidebar();
         document.getElementById('pinSection').style.display = 'block';
         this.pinManager.enable();
+    }
+    
+    /**
+     * 右サイドバーのトグル機能を設定します
+     */
+    setupRightSidebarToggle() {
+        const toggleButton = ErrorHandler.requireElement('rightSidebarToggle');
+        const rightSidebar = ErrorHandler.requireElement('rightSidebar');
+        
+        let isOpen = false; // 初期状態は閉じている
+        
+        toggleButton.addEventListener('click', () => {
+            if (isOpen) {
+                this.hideRightSidebar();
+            } else {
+                this.showRightSidebar();
+            }
+            isOpen = !isOpen;
+            
+            // ボタンの状態を更新
+            toggleButton.classList.toggle('open', isOpen);
+            toggleButton.title = isOpen ? 'ピン管理パネルを閉じる' : 'ピン管理パネルを開く';
+            
+            // オーバーレイマネージャーに状態変更を通知
+            if (this.overlayManager) {
+                this.overlayManager.onRightSidebarToggle();
+            }
+        });
+    }
+    
+    /**
+     * 右サイドバーを表示します
+     */
+    showRightSidebar() {
+        const rightSidebar = ErrorHandler.requireElement('rightSidebar');
+        const toggleButton = ErrorHandler.requireElement('rightSidebarToggle');
+        
+        rightSidebar.style.display = 'block';
+        toggleButton.classList.add('open');
+        toggleButton.title = 'ピン管理パネルを閉じる';
+        
+        // オーバーレイマネージャーに状態変更を通知
+        if (this.overlayManager) {
+            this.overlayManager.onRightSidebarToggle();
+        }
+    }
+    
+    /**
+     * 右サイドバーを非表示にします
+     */
+    hideRightSidebar() {
+        const rightSidebar = ErrorHandler.requireElement('rightSidebar');
+        const toggleButton = ErrorHandler.requireElement('rightSidebarToggle');
+        
+        rightSidebar.style.display = 'none';
+        toggleButton.classList.remove('open');
+        toggleButton.title = 'ピン管理パネルを開く';
+        
+        // オーバーレイマネージャーに状態変更を通知
+        if (this.overlayManager) {
+            this.overlayManager.onRightSidebarToggle();
+        }
     }
 }
 

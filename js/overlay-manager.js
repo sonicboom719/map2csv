@@ -33,14 +33,47 @@ export class OverlayManager {
         this.createControlPanel();
     }
     
+    // 右サイドバーの表示状態に応じてコントロールパネルの位置を更新
+    updateControlPanelPosition(controlDiv) {
+        const rightSidebar = document.getElementById('rightSidebar');
+        const isRightSidebarVisible = rightSidebar && rightSidebar.style.display !== 'none';
+        
+        controlDiv.style.position = 'absolute';
+        controlDiv.style.top = '10px';
+        
+        if (isRightSidebarVisible) {
+            // 右サイドバーが表示されている場合はサイドバー内に配置
+            controlDiv.style.right = '15px';
+        } else {
+            // 右サイドバーが非表示の場合はトグルボタンの左側に配置
+            controlDiv.style.right = '70px';
+        }
+    }
+    
+    // 右サイドバーの表示状態に応じて閉じるボタンの位置を更新
+    updateCloseBtnPosition(closeBtn) {
+        const rightSidebar = document.getElementById('rightSidebar');
+        const isRightSidebarVisible = rightSidebar && rightSidebar.style.display !== 'none';
+        
+        closeBtn.style.position = 'absolute';
+        closeBtn.style.top = '10px';
+        
+        if (isRightSidebarVisible) {
+            // 右サイドバーが表示されている場合はサイドバー内に配置
+            closeBtn.style.right = '25px';
+        } else {
+            // 右サイドバーが非表示の場合はトグルボタンの左側に配置
+            closeBtn.style.right = '80px';
+        }
+    }
+    
     createControlPanel() {
         // 画像表示コントロールパネルを作成
         const controlDiv = document.createElement('div');
         controlDiv.id = 'imageControls';
+        
+        // 基本スタイルを設定
         controlDiv.style.cssText = `
-            position: absolute;
-            top: 10px;
-            right: 10px;
             background: white;
             padding: 15px;
             border-radius: 8px;
@@ -49,6 +82,9 @@ export class OverlayManager {
             display: none;
             min-width: 200px;
         `;
+        
+        // 位置を設定
+        this.updateControlPanelPosition(controlDiv);
         
         controlDiv.innerHTML = `
             <div style="margin-bottom: 15px; font-weight: bold; font-size: 16px; color: #2c3e50;">📷 画像コントロール</div>
@@ -141,6 +177,14 @@ export class OverlayManager {
         };
         
         this.map.on('click', this.mapClickHandler);
+    }
+    
+    // 右サイドバーの表示状態が変更されたときに呼び出される
+    onRightSidebarToggle() {
+        const controlDiv = document.getElementById('imageControls');
+        if (controlDiv) {
+            this.updateControlPanelPosition(controlDiv);
+        }
     }
     
     // 位置合わせ実行前の状態を保存
@@ -1430,7 +1474,9 @@ export class OverlayManager {
         this.savePreApplyState();
         
         // コントロールパネルを表示
-        document.getElementById('imageControls').style.display = 'block';
+        const controlDiv = document.getElementById('imageControls');
+        this.updateControlPanelPosition(controlDiv);
+        controlDiv.style.display = 'block';
         
         // 既存のオーバーレイを削除
         if (this.overlayLayer) {
@@ -1581,10 +1627,9 @@ export class OverlayManager {
         
         const closeBtn = document.createElement('div');
         closeBtn.innerHTML = '✕ 閉じる（CLICK）';
+        
+        // 基本スタイルを設定
         closeBtn.style.cssText = `
-            position: absolute;
-            top: 20px;
-            right: 20px;
             background: rgba(255,255,255,0.9);
             padding: 10px 20px;
             border-radius: 25px;
@@ -1592,6 +1637,9 @@ export class OverlayManager {
             font-weight: bold;
             color: #333;
         `;
+        
+        // 位置を設定
+        this.updateCloseBtnPosition(closeBtn);
         
         modal.appendChild(img);
         modal.appendChild(closeBtn);

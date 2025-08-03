@@ -93,12 +93,29 @@
 			<canvas id="imageCanvas" style="display: none;"></canvas>
 		</div>
 		
+		<!-- 右サイドバー用トグルボタン -->
+		<button id="rightSidebarToggle" class="sidebar-toggle" title="ピン管理パネルを開く">
+			<span class="arrow">‹</span>
+		</button>
+		
 		<!-- 右サイドパネル -->
 		<div class="right-sidebar" id="rightSidebar" style="display: none;">
 			<!-- ピン管理セクション -->
 			<div class="section" id="pinSection">
 				<h2>4. ピンを配置</h2>
-				<p class="info">地図上を長押しでピン配置と編集、既存ピンはクリックで編集</p>
+				<p class="info">地図上をCLICKでピン配置、長押しでピン配置と編集、既存ピンはCLICKで編集</p>
+				<div style="margin: 10px 0;">
+					<label style="display: flex; align-items: center; font-size: 14px;">
+						<input type="checkbox" id="autoNumberingCheckbox" checked style="margin-right: 8px;">
+						ピン番号を自動で連番付与する
+					</label>
+				</div>
+				<div style="margin: 10px 0;">
+					<select id="pinDisplayType" style="padding: 5px; font-size: 14px;">
+						<option value="displayNumber">ピン番号をピンに表示</option>
+						<option value="pinNumber">掲示場番号をピンに表示</option>
+					</select>
+				</div>
 				<div id="pinList" class="pin-list"></div>
 				<div style="margin-top: 15px;">
 					<label style="display: block; margin-bottom: 10px;">
