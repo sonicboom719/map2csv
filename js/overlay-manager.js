@@ -36,14 +36,14 @@ export class OverlayManager {
     // 右サイドバーの表示状態に応じてコントロールパネルの位置を更新
     updateControlPanelPosition(controlDiv) {
         const rightSidebar = document.getElementById('rightSidebar');
-        const isRightSidebarVisible = rightSidebar && rightSidebar.style.display !== 'none';
+        const isRightSidebarVisible = rightSidebar && rightSidebar.classList.contains('visible');
         
         controlDiv.style.position = 'absolute';
         controlDiv.style.top = '10px';
         
         if (isRightSidebarVisible) {
-            // 右サイドバーが表示されている場合はサイドバー内に配置
-            controlDiv.style.right = '15px';
+            // 右サイドバーが表示されている場合はサイドバーのすぐ左側に配置
+            controlDiv.style.right = '370px';
         } else {
             // 右サイドバーが非表示の場合はトグルボタンの左側に配置
             controlDiv.style.right = '70px';
@@ -53,7 +53,7 @@ export class OverlayManager {
     // 右サイドバーの表示状態に応じて閉じるボタンの位置を更新
     updateCloseBtnPosition(closeBtn) {
         const rightSidebar = document.getElementById('rightSidebar');
-        const isRightSidebarVisible = rightSidebar && rightSidebar.style.display !== 'none';
+        const isRightSidebarVisible = rightSidebar && rightSidebar.classList.contains('visible');
         
         closeBtn.style.position = 'absolute';
         closeBtn.style.top = '10px';
@@ -81,6 +81,7 @@ export class OverlayManager {
             z-index: 1000;
             display: none;
             min-width: 200px;
+            transition: right 0.3s ease;
         `;
         
         // 位置を設定

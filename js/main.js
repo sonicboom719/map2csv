@@ -149,11 +149,23 @@ class App {
         }
         
         try {
+            this.setupLeftSidebarToggle();
+        } catch (error) {
+            console.error('左サイドバートグル設定失敗:', error);
+            throw error;
+        }
+        
+        try {
             this.setupRightSidebarToggle();
         } catch (error) {
             console.error('右サイドバートグル設定失敗:', error);
             throw error;
         }
+        
+        // 初期化完了後にマップコントロールの位置を設定
+        setTimeout(() => {
+            this.updateMapControlsPosition();
+        }, 100);
     }
     
     setupAddressSearch() {
@@ -254,6 +266,29 @@ class App {
     }
     
     /**
+     * 左サイドバーのトグル機能を設定します
+     */
+    setupLeftSidebarToggle() {
+        const toggleButton = ErrorHandler.requireElement('leftSidebarToggle');
+        const leftSidebar = ErrorHandler.requireElement('sidebar');
+        
+        let isOpen = true; // 初期状態は表示
+        
+        toggleButton.addEventListener('click', () => {
+            if (isOpen) {
+                this.hideLeftSidebar();
+            } else {
+                this.showLeftSidebar();
+            }
+            isOpen = !isOpen;
+            
+            // ボタンの状態を更新
+            toggleButton.classList.toggle('open', isOpen);
+            toggleButton.title = isOpen ? 'アップロード・設定パネルを閉じる' : 'アップロード・設定パネルを開く';
+        });
+    }
+    
+    /**
      * 右サイドバーのトグル機能を設定します
      */
     setupRightSidebarToggle() {
@@ -282,13 +317,43 @@ class App {
     }
     
     /**
+     * 左サイドバーを表示します
+     */
+    showLeftSidebar() {
+        const leftSidebar = ErrorHandler.requireElement('sidebar');
+        const toggleButton = ErrorHandler.requireElement('leftSidebarToggle');
+        
+        leftSidebar.classList.remove('hidden');
+        toggleButton.classList.add('open');
+        toggleButton.title = 'アップロード・設定パネルを閉じる';
+        
+        // マップコントロールの位置を更新
+        this.updateMapControlsPosition();
+    }
+    
+    /**
+     * 左サイドバーを非表示にします
+     */
+    hideLeftSidebar() {
+        const leftSidebar = ErrorHandler.requireElement('sidebar');
+        const toggleButton = ErrorHandler.requireElement('leftSidebarToggle');
+        
+        leftSidebar.classList.add('hidden');
+        toggleButton.classList.remove('open');
+        toggleButton.title = 'アップロード・設定パネルを開く';
+        
+        // マップコントロールの位置を更新
+        this.updateMapControlsPosition();
+    }
+    
+    /**
      * 右サイドバーを表示します
      */
     showRightSidebar() {
         const rightSidebar = ErrorHandler.requireElement('rightSidebar');
         const toggleButton = ErrorHandler.requireElement('rightSidebarToggle');
         
-        rightSidebar.style.display = 'block';
+        rightSidebar.classList.add('visible');
         toggleButton.classList.add('open');
         toggleButton.title = 'ピン管理パネルを閉じる';
         
@@ -305,13 +370,50 @@ class App {
         const rightSidebar = ErrorHandler.requireElement('rightSidebar');
         const toggleButton = ErrorHandler.requireElement('rightSidebarToggle');
         
-        rightSidebar.style.display = 'none';
+        rightSidebar.classList.remove('visible');
         toggleButton.classList.remove('open');
         toggleButton.title = 'ピン管理パネルを開く';
         
         // オーバーレイマネージャーに状態変更を通知
         if (this.overlayManager) {
             this.overlayManager.onRightSidebarToggle();
+        }
+    }
+    
+    /**
+     * ズームコントロールとマップタイル選択パネルの位置を左サイドバーの状態に応じて更新します
+     */
+    updateMapControlsPosition() {
+        // 地図が初期化されていない場合は何もしない
+        if (!this.mapManager || !this.mapManager.map) {
+            return;
+        }
+        
+        const leftSidebar = ErrorHandler.requireElement('sidebar');
+        const isLeftSidebarVisible = !leftSidebar.classList.contains('hidden');
+        
+        // ズームコントロール要素を取得
+        const zoomControl = document.querySelector('.leaflet-control-zoom');
+        if (zoomControl) {
+            if (isLeftSidebarVisible) {
+                // 左サイドバー表示時: サイドバーの右側
+                zoomControl.classList.remove('sidebar-hidden');
+            } else {
+                // 左サイドバー非表示時: トグルボタンの右側
+                zoomControl.classList.add('sidebar-hidden');
+            }
+        }
+        
+        // マップタイル選択パネルの位置も更新
+        const tileSelector = document.querySelector('.map-tile-selector');
+        if (tileSelector) {
+            if (isLeftSidebarVisible) {
+                // 左サイドバー表示時: サイドバーの右側
+                tileSelector.classList.remove('sidebar-hidden');
+            } else {
+                // 左サイドバー非表示時: トグルボタンの右側
+                tileSelector.classList.add('sidebar-hidden');
+            }
         }
     }
 }
