@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV入出力テスト - ポスター地図→CSV化支援ツール</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .test-header {
+            background: linear-gradient(135deg, #fd7e14, #dc3545);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .test-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        
+        .test-content {
+            padding: 30px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .file-upload {
+            margin: 15px 0;
+            padding: 15px;
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .file-upload:hover {
+            border-color: #fd7e14;
+            background: #fff5e6;
+        }
+        
+        .file-upload input {
+            display: none;
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .preview-table th {
+            background: #e9ecef;
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+        
+        .preview-table td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .test-result.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .test-result.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        button {
+            background: #fd7e14;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #e8590c;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .column-list {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .column-item {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        
+        .column-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .column-item input {
+            margin-right: 10px;
+        }
+        
+        .column-item .required {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>CSV入出力テストツール</h1>
+            <p>CSVインポート・エクスポート機能をテストします</p>
+        </div>
+        
+        <div class="test-content">
+            <!-- CSVインポートテストセクション -->
+            <div class="test-section">
+                <h3>📥 CSVインポートテスト</h3>
+                
+                <div class="file-upload" id="importFileUpload">
+                    <input type="file" id="csvFileInput" accept=".csv">
+                    <p>CSVファイルをクリックして選択<br>または<br>ドラッグ＆ドロップ</p>
+                </div>
+                
+                <div id="importResults" style="display: none;">
+                    <h4>ファイル情報</h4>
+                    <div id="fileInfo"></div>
+                    
+                    <h4>列選択</h4>
+                    <div class="column-list" id="columnList"></div>
+                    
+                    <h4>プレビュー（最初の5行）</h4>
+                    <div style="overflow-x: auto;">
+                        <table class="preview-table" id="previewTable"></table>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <button id="validateBtn">バリデーション実行</button>
+                        <button id="importBtn">インポートテスト実行</button>
+                    </div>
+                    
+                    <div id="testResults"></div>
+                </div>
+            </div>
+            
+            <!-- CSVエクスポートテストセクション -->
+            <div class="test-section">
+                <h3>📤 CSVエクスポートテスト</h3>
+                
+                <div>
+                    <h4>テストデータ生成</h4>
+                    <button id="generateTestData">テストピンデータを生成</button>
+                    
+                    <div id="exportData" style="display: none;">
+                        <h4>生成されたピンデータ</h4>
+                        <div id="pinDataDisplay"></div>
+                        
+                        <h4>エクスポート設定</h4>
+                        <div style="margin: 10px 0;">
+                            <label>都道府県: <input type="text" id="prefectureInput" value="東京都"></label>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <label>市区町村: <input type="text" id="cityInput" value="千代田区"></label>
+                        </div>
+                        
+                        <button id="exportBtn">CSVエクスポートテスト実行</button>
+                        
+                        <div id="exportResults"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- サンプルファイル -->
+            <div class="test-section">
+                <h3>📁 テスト用サンプルファイル</h3>
+                <p>以下のサンプルファイルでテストできます：</p>
+                <ul>
+                    <li><a href="samples/test_import.csv" download>test_import.csv</a> - 全8列のフル形式</li>
+                    <li><a href="samples/test_minimal.csv" download>test_minimal.csv</a> - 最小形式（lat,longのみ）</li>
+                    <li><a href="samples/test_mixed.csv" download>test_mixed.csv</a> - 混合形式（標準列＋カスタム列）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // CSVインポートテスト
+        class CsvImportTester {
+            constructor() {
+                this.csvData = null;
+                this.csvHeaders = null;
+                this.setupEventHandlers();
+            }
+            
+            setupEventHandlers() {
+                const fileInput = document.getElementById('csvFileInput');
+                const uploadArea = document.getElementById('importFileUpload');
+                
+                uploadArea.addEventListener('click', () => fileInput.click());
+                
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.style.borderColor = '#fd7e14';
+                });
+                
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.style.borderColor = '#6c757d';
+                });
+                
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.style.borderColor = '#6c757d';
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type === 'text/csv') {
+                        this.handleFile(file);
+                    }
+                });
+                
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        this.handleFile(file);
+                    }
+                });
+                
+                document.getElementById('validateBtn').addEventListener('click', () => {
+                    this.runValidation();
+                });
+                
+                document.getElementById('importBtn').addEventListener('click', () => {
+                    this.runImportTest();
+                });
+            }
+            
+            handleFile(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        // PapaParseがない場合の簡易パース
+                        const lines = e.target.result.split('\n').filter(line => line.trim());
+                        if (lines.length < 2) {
+                            throw new Error('CSVファイルにはヘッダー行とデータ行が必要です');
+                        }
+                        
+                        this.csvHeaders = lines[0].split(',').map(h => h.trim());
+                        this.csvData = lines.slice(1).map(line => {
+                            const values = line.split(',').map(v => v.trim());
+                            const row = {};
+                            this.csvHeaders.forEach((header, i) => {
+                                row[header] = values[i] || '';
+                            });
+                            return row;
+                        });
+                        
+                        this.displayFileInfo(file.name);
+                        this.displayColumns();
+                        this.displayPreview();
+                        
+                        document.getElementById('importResults').style.display = 'block';
+                        
+                    } catch (error) {
+                        alert('CSVファイルの読み込みエラー: ' + error.message);
+                    }
+                };
+                reader.readAsText(file, 'UTF-8');
+            }
+            
+            displayFileInfo(fileName) {
+                document.getElementById('fileInfo').innerHTML = `
+                    <p><strong>ファイル名:</strong> ${fileName}</p>
+                    <p><strong>列数:</strong> ${this.csvHeaders.length}列</p>
+                    <p><strong>データ行数:</strong> ${this.csvData.length}行</p>
+                `;
+            }
+            
+            displayColumns() {
+                const candidateColumns = {
+                    'prefecture': '都道府県',
+                    'city': '市区町村',
+                    'number': '掲示場番号',
+                    'address': '住所',
+                    'name': '場所名称',
+                    'lat': '緯度',
+                    'long': '経度',
+                    'note': 'メモ'
+                };
+                
+                const columnList = document.getElementById('columnList');
+                columnList.innerHTML = '';
+                
+                this.csvHeaders.forEach(header => {
+                    const div = document.createElement('div');
+                    div.className = 'column-item';
+                    
+                    const isRequired = ['lat', 'long'].includes(header.toLowerCase());
+                    const isCandidate = Object.keys(candidateColumns).includes(header.toLowerCase());
+                    
+                    div.innerHTML = `
+                        <label>
+                            <input type="checkbox" value="${header}" 
+                                   ${isRequired ? 'checked disabled' : isCandidate ? 'checked' : ''}>
+                            <strong>${header}</strong>
+                            <span class="${isRequired ? 'required' : ''}">
+                                ${candidateColumns[header.toLowerCase()] || 'カスタム列'}
+                                ${isRequired ? '（必須）' : ''}
+                            </span>
+                        </label>
+                    `;
+                    
+                    columnList.appendChild(div);
+                });
+            }
+            
+            displayPreview() {
+                const table = document.getElementById('previewTable');
+                table.innerHTML = '';
+                
+                // ヘッダー行
+                const headerRow = document.createElement('tr');
+                this.csvHeaders.forEach(header => {
+                    const th = document.createElement('th');
+                    th.textContent = header;
+                    headerRow.appendChild(th);
+                });
+                table.appendChild(headerRow);
+                
+                // データ行（最初の5行）
+                const previewData = this.csvData.slice(0, 5);
+                previewData.forEach(row => {
+                    const tr = document.createElement('tr');
+                    this.csvHeaders.forEach(header => {
+                        const td = document.createElement('td');
+                        td.textContent = row[header] || '';
+                        tr.appendChild(td);
+                    });
+                    table.appendChild(tr);
+                });
+            }
+            
+            runValidation() {
+                const results = document.getElementById('testResults');
+                results.innerHTML = '<h4>バリデーション結果</h4>';
+                
+                // 必須列チェック
+                const hasLat = this.csvHeaders.some(h => h.toLowerCase() === 'lat');
+                const hasLong = this.csvHeaders.some(h => h.toLowerCase() === 'long');
+                
+                if (!hasLat || !hasLong) {
+                    results.innerHTML += '<div class="test-result error">❌ 必須列（lat, long）が見つかりません</div>';
+                    return;
+                } else {
+                    results.innerHTML += '<div class="test-result success">✅ 必須列（lat, long）が存在します</div>';
+                }
+                
+                // データ検証
+                let validCount = 0;
+                let invalidCount = 0;
+                
+                this.csvData.forEach((row, index) => {
+                    const lat = parseFloat(row.lat);
+                    const long = parseFloat(row.long);
+                    
+                    if (isNaN(lat) || isNaN(long)) {
+                        invalidCount++;
+                        results.innerHTML += `<div class="test-result error">❌ 行${index + 2}: 無効な緯度経度</div>`;
+                    } else if (lat < 20 || lat > 50 || long < 110 || long > 160) {
+                        invalidCount++;
+                        results.innerHTML += `<div class="test-result error">❌ 行${index + 2}: 範囲外の座標</div>`;
+                    } else {
+                        validCount++;
+                    }
+                });
+                
+                results.innerHTML += `<div class="test-result success">✅ 有効なデータ: ${validCount}行</div>`;
+                if (invalidCount > 0) {
+                    results.innerHTML += `<div class="test-result error">❌ 無効なデータ: ${invalidCount}行</div>`;
+                }
+            }
+            
+            runImportTest() {
+                const results = document.getElementById('testResults');
+                results.innerHTML = '<h4>インポートテスト結果</h4>';
+                
+                const selectedColumns = Array.from(document.querySelectorAll('#columnList input:checked'))
+                    .map(cb => cb.value);
+                
+                results.innerHTML += `<div class="test-result success">✅ 選択された列: ${selectedColumns.join(', ')}</div>`;
+                
+                // インポートシミュレーション
+                const pins = [];
+                this.csvData.forEach((row, index) => {
+                    const pin = {
+                        id: index + 1,
+                        lat: parseFloat(row.lat),
+                        lng: parseFloat(row.long),
+                        number: row.number || '',
+                        name: row.name || '',
+                        memo: row.note || row.memo || ''
+                    };
+                    pins.push(pin);
+                });
+                
+                results.innerHTML += `<div class="test-result success">✅ ${pins.length}個のピンがインポート可能です</div>`;
+                
+                // 最初の3つのピンを表示
+                pins.slice(0, 3).forEach(pin => {
+                    results.innerHTML += `<div class="test-result success">
+                        📍 ピン${pin.id}: ${pin.name || '名称なし'} (${pin.lat.toFixed(6)}, ${pin.lng.toFixed(6)})
+                    </div>`;
+                });
+            }
+        }
+        
+        // CSVエクスポートテスト
+        class CsvExportTester {
+            constructor() {
+                this.testPins = [];
+                this.setupEventHandlers();
+            }
+            
+            setupEventHandlers() {
+                document.getElementById('generateTestData').addEventListener('click', () => {
+                    this.generateTestData();
+                });
+                
+                document.getElementById('exportBtn').addEventListener('click', () => {
+                    this.runExportTest();
+                });
+            }
+            
+            generateTestData() {
+                this.testPins = [
+                    {
+                        latitude: 35.681236,
+                        longitude: 139.767125,
+                        number: 'A-1',
+                        name: '東京駅前',
+                        memo: 'JR東京駅丸の内口'
+                    },
+                    {
+                        latitude: 35.658581,
+                        longitude: 139.745433,
+                        number: 'A-2',
+                        name: '東京タワー',
+                        memo: '正面入口付近'
+                    },
+                    {
+                        latitude: 35.710063,
+                        longitude: 139.810700,
+                        number: 'B-1',
+                        name: '東京スカイツリー',
+                        memo: '東京スカイツリータウン内'
+                    }
+                ];
+                
+                this.displayPinData();
+                document.getElementById('exportData').style.display = 'block';
+            }
+            
+            displayPinData() {
+                const display = document.getElementById('pinDataDisplay');
+                display.innerHTML = '<ul>';
+                
+                this.testPins.forEach((pin, index) => {
+                    display.innerHTML += `
+                        <li>
+                            <strong>ピン${index + 1}:</strong> ${pin.name} (${pin.number})<br>
+                            座標: ${pin.latitude}, ${pin.longitude}<br>
+                            メモ: ${pin.memo}
+                        </li>
+                    `;
+                });
+                
+                display.innerHTML += '</ul>';
+            }
+            
+            runExportTest() {
+                const prefecture = document.getElementById('prefectureInput').value;
+                const city = document.getElementById('cityInput').value;
+                
+                const csvData = this.formatCsvData(this.testPins, prefecture, city);
+                const csvString = this.arrayToCsv(csvData);
+                
+                const results = document.getElementById('exportResults');
+                results.innerHTML = '<h4>エクスポート結果</h4>';
+                
+                results.innerHTML += `<div class="test-result success">✅ CSV生成成功</div>`;
+                results.innerHTML += `<div class="test-result success">✅ ヘッダー: ${csvData[0].join(', ')}</div>`;
+                results.innerHTML += `<div class="test-result success">✅ データ行数: ${csvData.length - 1}</div>`;
+                
+                // CSV内容のプレビュー
+                results.innerHTML += '<h5>生成されたCSV（プレビュー）:</h5>';
+                results.innerHTML += '<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto;">' + 
+                                   csvString + '</pre>';
+                
+                // ダウンロードボタン
+                results.innerHTML += '<button onclick="downloadCsv(\'' + 
+                                   btoa(unescape(encodeURIComponent(csvString))) + 
+                                   '\', \'' + city + '_normalized.csv\')">CSVをダウンロード</button>';
+            }
+            
+            formatCsvData(pins, prefecture, city) {
+                return [
+                    ['prefecture', 'city', 'number', 'address', 'name', 'lat', 'long', 'note'],
+                    ...pins.map(pin => [
+                        prefecture,
+                        city,
+                        pin.number || '',
+                        '',  // address is always empty
+                        pin.name || '',
+                        pin.latitude.toFixed(6),
+                        pin.longitude.toFixed(6),
+                        pin.memo || ''
+                    ])
+                ];
+            }
+            
+            arrayToCsv(data) {
+                return data.map(row => row.join(',')).join('\n');
+            }
+        }
+        
+        // ダウンロード関数
+        function downloadCsv(base64Data, fileName) {
+            const csvData = decodeURIComponent(escape(atob(base64Data)));
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 初期化
+        new CsvImportTester();
+        new CsvExportTester();
+    </script>
+</body>
+</html>

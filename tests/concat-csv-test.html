@@ -252,12 +252,12 @@
                 addLog(csvOutput.substring(0, 200) + '...');
                 
                 // ヘッダーの確認（8列対応）
-                const lines = csvOutput.split('\n');
-                const header = lines[0];
+                const lines = csvOutput.trim().split('\n');
+                const header = lines[0].trim();
                 const expectedHeader = 'prefecture,city,number,address,name,lat,long,note';
                 
                 if (header !== expectedHeader) {
-                    throw new Error(`ヘッダーが不正: 期待値${expectedHeader}, 実際${header}`);
+                    throw new Error(`ヘッダーが不正: 期待値"${expectedHeader}", 実際"${header}"`);
                 }
                 
                 addResult('CSVエクスポートテスト', true);

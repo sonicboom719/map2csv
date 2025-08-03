@@ -133,9 +133,10 @@
     <div class="test-container">
         <div class="test-header">
             <h1>テストスイート</h1>
-            <p>地図→CSV化支援ツール - 2点・3点・4点変換機能テスト</p>
+            <p>ポスター地図→CSV化支援ツール - 全機能テスト</p>
             <span class="feature-badge">HTML実行対応</span>
             <span class="feature-badge">4点射影変換対応</span>
+            <span class="feature-badge">CSVインポート対応</span>
         </div>
         
         <div class="test-content">
@@ -163,6 +164,14 @@
                         ユニットテストを実行
                     </button>
                 </div>
+                
+                <div class="test-card csv-test" style="grid-column: 1 / -1;">
+                    <h3>📊 CSV結合ツールテスト</h3>
+                    <p>CSV結合ツールの機能（ソート、バリデーション、エクスポート等）をテストします。</p>
+                    <button onclick="window.open('concat-csv-test.html', '_blank')" style="background: #fd7e14;">
+                        CSV結合テストを実行
+                    </button>
+                </div>
             </div>
             
             <div class="info-section">
@@ -178,11 +187,15 @@
                 <h3>🚀 実装済み機能</h3>
                 <ul>
                     <li><strong>2点変換:</strong> スケール・回転調整（従来機能）</li>
-                    <li><strong>3点変換:</strong> アフィン変換による歪み補正（新機能）</li>
+                    <li><strong>3点変換:</strong> アフィン変換による歪み補正</li>
+                    <li><strong>4点変換:</strong> 射影変換による完全な歪み補正</li>
                     <li><strong>プルダウン選択:</strong> 変換方式の動的切り替え</li>
                     <li><strong>OpenCV.js統合:</strong> 高度な画像変換処理</li>
-                    <li><strong>座標対応:</strong> 選択点の正確な位置合わせ</li>
-                    <li><strong>UI改善:</strong> カラフルな状態表示、タイトルバー表示</li>
+                    <li><strong>CSVエクスポート:</strong> モーダルダイアログによる設定、都道府県・市区町村指定</li>
+                    <li><strong>CSVインポート:</strong> 柔軟な列選択、lat/long必須、追加/クリアオプション</li>
+                    <li><strong>ピン管理:</strong> 長押しで配置、自動連番、表示切替</li>
+                    <li><strong>サイドバー:</strong> 左右独立トグル、アニメーション付き</li>
+                    <li><strong>CSV結合ツール:</strong> 複数CSVの結合、ソート、バリデーション機能</li>
                 </ul>
             </div>
             

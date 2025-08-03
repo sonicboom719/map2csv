@@ -97,7 +97,7 @@
     <div class="test-container">
         <div class="test-header">
             <h1>基本機能テストスイート</h1>
-            <p>2点・3点・4点変換機能の基本的なロジックをテストします</p>
+            <p>全機能（変換、CSV入出力、ピン管理）の基本的なロジックをテストします</p>
         </div>
         
         <div class="test-content">
@@ -469,6 +469,219 @@
                 this.log('座標系変換テスト完了');
             }
             
+            // CSVインポート検証のテスト
+            async testCsvImportValidation() {
+                this.log('\\n=== CSVインポート検証テスト ===');
+                
+                // モックCSVインポーター
+                const mockImporter = {
+                    validateCsvStructure: function(rawResult) {
+                        if (!rawResult.data || rawResult.data.length === 0) {
+                            return 'CSVファイルが空です。';
+                        }
+                        if (rawResult.data.length < 2) {
+                            return 'CSVファイルにはヘッダー行とデータ行が最低1行ずつ必要です。';
+                        }
+                        const headerColumnCount = rawResult.data[0].length;
+                        for (let i = 1; i < rawResult.data.length; i++) {
+                            if (rawResult.data[i].length !== headerColumnCount) {
+                                return `行 ${i + 1} の列数が一致しません。`;
+                            }
+                        }
+                        return null;
+                    },
+                    
+                    validateCsvData: function(headers, data) {
+                        if (!headers || headers.length === 0) {
+                            return 'CSVファイルにヘッダー行が見つかりません。';
+                        }
+                        const hasLatColumn = headers.some(h => h.toLowerCase() === 'lat');
+                        const hasLongColumn = headers.some(h => h.toLowerCase() === 'long');
+                        
+                        if (!hasLatColumn || !hasLongColumn) {
+                            return '必須列 "lat"（緯度）と "long"（経度）が見つかりません。';
+                        }
+                        if (data.length === 0) {
+                            return 'CSVファイルにデータが含まれていません。';
+                        }
+                        if (headers.length < 2) {
+                            return `列数が少なすぎます。最低でもlat, longの2列が必要です。`;
+                        }
+                        return null;
+                    }
+                };
+                
+                // 正常なCSVのテスト
+                const validRawResult = {
+                    data: [
+                        ['lat', 'long', 'name'],
+                        ['35.681236', '139.767125', '東京駅']
+                    ]
+                };
+                
+                this.assertEqual(mockImporter.validateCsvStructure(validRawResult), null, '正常なCSV構造は検証を通過');
+                this.assertEqual(mockImporter.validateCsvData(['lat', 'long', 'name'], [{lat: '35.681236', long: '139.767125'}]), null, '正常なCSVデータは検証を通過');
+                
+                // 空のCSVのテスト
+                const emptyRawResult = { data: [] };
+                this.assertEqual(mockImporter.validateCsvStructure(emptyRawResult), 'CSVファイルが空です。', '空のCSVは適切にエラー');
+                
+                // ヘッダーのみのCSVのテスト
+                const headerOnlyRawResult = { data: [['lat', 'long']] };
+                this.assertEqual(mockImporter.validateCsvStructure(headerOnlyRawResult), 'CSVファイルにはヘッダー行とデータ行が最低1行ずつ必要です。', 'ヘッダーのみのCSVは適切にエラー');
+                
+                // 列数不一致のテスト
+                const mismatchedRawResult = {
+                    data: [
+                        ['lat', 'long', 'name'],
+                        ['35.681236', '139.767125']  // 列数不足
+                    ]
+                };
+                this.assertEqual(mockImporter.validateCsvStructure(mismatchedRawResult), '行 2 の列数が一致しません。', '列数不一致は適切にエラー');
+                
+                // 必須列なしのテスト
+                this.assertEqual(mockImporter.validateCsvData(['name', 'address'], []), '必須列 "lat"（緯度）と "long"（経度）が見つかりません。', '必須列なしは適切にエラー');
+                
+                // 最小列数（lat, longのみ）のテスト
+                this.assertEqual(mockImporter.validateCsvData(['lat', 'long'], [{lat: '35', long: '139'}]), null, '最小列数（2列）でも検証を通過');
+                
+                this.log('CSVインポート検証テスト完了');
+            }
+            
+            // CSVエクスポート検証のテスト
+            async testCsvExportValidation() {
+                this.log('\\n=== CSVエクスポート検証テスト ===');
+                
+                // モックエクスポーター
+                const mockExporter = {
+                    formatCsvData: function(pins, prefecture, city) {
+                        return [
+                            ['prefecture', 'city', 'number', 'address', 'name', 'lat', 'long', 'note'],
+                            ...pins.map(pin => [
+                                prefecture,
+                                city,
+                                pin.number || '',
+                                '',  // address is always empty
+                                pin.name || '',
+                                pin.latitude.toFixed(6),
+                                pin.longitude.toFixed(6),
+                                pin.memo || ''
+                            ])
+                        ];
+                    }
+                };
+                
+                // テストデータ
+                const testPins = [
+                    { latitude: 35.681236, longitude: 139.767125, number: 'A-1', name: '東京駅', memo: 'テスト' }
+                ];
+                
+                const csvData = mockExporter.formatCsvData(testPins, '東京都', '千代田区');
+                
+                // ヘッダー検証
+                this.assertEqual(csvData[0].length, 8, 'CSVヘッダーが8列');
+                this.assertEqual(csvData[0][0], 'prefecture', 'ヘッダー1列目がprefecture');
+                this.assertEqual(csvData[0][6], 'long', 'ヘッダー7列目がlong');
+                
+                // データ行検証
+                this.assertEqual(csvData[1][0], '東京都', '都道府県が正しく設定');
+                this.assertEqual(csvData[1][1], '千代田区', '市区町村が正しく設定');
+                this.assertEqual(csvData[1][2], 'A-1', '掲示場番号が正しく設定');
+                this.assertEqual(csvData[1][3], '', 'addressは常に空');
+                this.assertEqual(csvData[1][5], '35.681236', '緯度が6桁で正しく設定');
+                this.assertEqual(csvData[1][6], '139.767125', '経度が6桁で正しく設定');
+                
+                this.log('CSVエクスポート検証テスト完了');
+            }
+            
+            // ピン管理のテスト
+            async testPinManagement() {
+                this.log('\\n=== ピン管理テスト ===');
+                
+                // モックピンマネージャー
+                const mockPinManager = {
+                    pins: [],
+                    pinIdCounter: 1,
+                    nextAutoNumber: 1,
+                    autoNumberingEnabled: true,
+                    
+                    addPin: function(latlng) {
+                        const pin = {
+                            id: this.pinIdCounter++,
+                            latlng: latlng,
+                            displayNumber: this.autoNumberingEnabled ? this.nextAutoNumber.toString() : '',
+                            number: '',
+                            name: '',
+                            memo: ''
+                        };
+                        
+                        if (this.autoNumberingEnabled) {
+                            this.nextAutoNumber++;
+                        }
+                        
+                        this.pins.push(pin);
+                        return pin;
+                    },
+                    
+                    removePin: function(pinId) {
+                        const index = this.pins.findIndex(p => p.id === pinId);
+                        if (index !== -1) {
+                            this.pins.splice(index, 1);
+                            if (this.autoNumberingEnabled) {
+                                this.recalculateAutoNumbers();
+                            }
+                            return true;
+                        }
+                        return false;
+                    },
+                    
+                    recalculateAutoNumbers: function() {
+                        let number = 1;
+                        this.pins.forEach(pin => {
+                            if (pin.displayNumber) {
+                                pin.displayNumber = number.toString();
+                                number++;
+                            }
+                        });
+                        this.nextAutoNumber = number;
+                    },
+                    
+                    clearAllPins: function() {
+                        this.pins = [];
+                        this.nextAutoNumber = 1;
+                    }
+                };
+                
+                // ピン追加テスト
+                const pin1 = mockPinManager.addPin({ lat: 35.681, lng: 139.767 });
+                this.assertEqual(pin1.id, 1, 'ピン1のIDが1');
+                this.assertEqual(pin1.displayNumber, '1', '自動連番が1');
+                this.assertEqual(mockPinManager.pins.length, 1, 'ピン数が1');
+                
+                const pin2 = mockPinManager.addPin({ lat: 35.682, lng: 139.768 });
+                this.assertEqual(pin2.id, 2, 'ピン2のIDが2');
+                this.assertEqual(pin2.displayNumber, '2', '自動連番が2');
+                this.assertEqual(mockPinManager.pins.length, 2, 'ピン数が2');
+                
+                // ピン削除テスト
+                this.assertTrue(mockPinManager.removePin(1), 'ピン1の削除成功');
+                this.assertEqual(mockPinManager.pins.length, 1, '削除後のピン数が1');
+                this.assertEqual(mockPinManager.pins[0].displayNumber, '1', '再連番後、残ったピンの番号が1');
+                this.assertEqual(mockPinManager.nextAutoNumber, 2, '次の自動番号が2');
+                
+                // 全ピンクリアテスト
+                mockPinManager.clearAllPins();
+                this.assertEqual(mockPinManager.pins.length, 0, 'クリア後のピン数が0');
+                this.assertEqual(mockPinManager.nextAutoNumber, 1, '自動番号がリセット');
+                
+                // 自動連番無効時のテスト
+                mockPinManager.autoNumberingEnabled = false;
+                const pin3 = mockPinManager.addPin({ lat: 35.683, lng: 139.769 });
+                this.assertEqual(pin3.displayNumber, '', '自動連番無効時は番号なし');
+                
+                this.log('ピン管理テスト完了');
+            }
+            
             displaySummary() {
                 const container = document.getElementById('testSummary');
                 const successRate = this.results.total === 0 ? 0 : 
@@ -497,6 +710,9 @@
                     await this.test('最大点数管理', this.testMaxPointsManagement);
                     await this.test('色分け', this.testColorMapping);
                     await this.test('座標系変換', this.testCoordinateTransform);
+                    await this.test('CSVインポート検証', this.testCsvImportValidation);
+                    await this.test('CSVエクスポート検証', this.testCsvExportValidation);
+                    await this.test('ピン管理', this.testPinManagement);
                     
                     this.log('\\n🎉 全テスト成功！');
                     this.log('\\n=== テスト結果サマリ ===');
@@ -506,6 +722,9 @@
                     this.log('✓ 最大点数管理: 正常');
                     this.log('✓ 色分け: 正常');
                     this.log('✓ 座標系変換: 正常');
+                    this.log('✓ CSVインポート検証: 正常');
+                    this.log('✓ CSVエクスポート検証: 正常');
+                    this.log('✓ ピン管理: 正常');
                     
                 } catch (error) {
                     this.log('\\n❌ テスト失敗:', error.message);
