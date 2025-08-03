@@ -49,6 +49,7 @@ class App {
         };
         
         this.initialize();
+        this.setupPerformanceOptimization();
     }
     
     /**
@@ -388,6 +389,46 @@ class App {
         if (this.overlayManager) {
             this.overlayManager.onRightSidebarToggle();
         }
+    }
+    
+    /**
+     * パフォーマンス最適化の設定
+     * 定期的なクリーンアップとメモリ管理を行います
+     */
+    setupPerformanceOptimization() {
+        // 5分ごとにマップのパフォーマンス最適化を実行
+        setInterval(() => {
+            if (this.mapManager) {
+                this.mapManager.cleanup();
+            }
+        }, 300000); // 5分 = 300,000ms
+        
+        // 30秒ごとに軽量な最適化を実行
+        setInterval(() => {
+            if (this.mapManager && this.mapManager.currentTileLayer) {
+                // ガベージコレクションの促進
+                if (window.gc) {
+                    window.gc();
+                }
+            }
+        }, 30000); // 30秒
+        
+        // ページの可視性が変わった時の最適化
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // ページが非表示になった時のクリーンアップ
+                if (this.mapManager) {
+                    this.mapManager.cleanup();
+                }
+            } else {
+                // ページが表示された時の最適化
+                setTimeout(() => {
+                    if (this.mapManager) {
+                        this.mapManager.optimizePerformance();
+                    }
+                }, 500);
+            }
+        });
     }
     
     /**

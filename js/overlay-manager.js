@@ -168,7 +168,18 @@ export class OverlayManager {
             });
         }
         
-        // 地図のクリックイベント
+        // 地図のクリックイベントを設定
+        this.setupMapClickHandler();
+    }
+    
+    // マップクリックイベントハンドラーを設定
+    setupMapClickHandler() {
+        // 既存のハンドラーがあれば削除
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
+        }
+        
+        // 新しいハンドラーを作成
         this.mapClickHandler = (e) => {
             const requiredPoints = this.getRequiredPoints();
             // 画像で必要数の点を選択完了後はマップクリックを受け付ける
@@ -177,7 +188,56 @@ export class OverlayManager {
             }
         };
         
+        // ハンドラーを登録
         this.map.on('click', this.mapClickHandler);
+        console.log('Map click handler setup completed');
+    }
+    
+    // 位置合わせモードに移行
+    enterAlignmentMode() {
+        console.log('Entering alignment mode');
+        
+        // ピンマネージャーを無効化・非表示
+        if (this.pinManager) {
+            this.pinManager.disable();
+            this.pinManager.hidePins();
+        }
+        
+        // オーバーレイマネージャーのマップクリックを有効化
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler); // 重複登録を避けるため一旦削除
+            this.map.on('click', this.mapClickHandler);
+        }
+        
+        // 位置合わせセクションとボタンを表示
+        this.overlaySection.style.display = 'block';
+        this.applyButton.style.display = 'inline-block';
+        
+        // マップカーソルを十字に設定
+        this.setMapCursor('crosshair');
+        
+        console.log('Alignment mode entered');
+    }
+    
+    // ピンモードに移行
+    enterPinMode() {
+        console.log('Entering pin mode');
+        
+        // オーバーレイマネージャーのマップクリックを無効化
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
+        }
+        
+        // ピンマネージャーを有効化・表示
+        if (this.pinManager) {
+            this.pinManager.enable();
+            this.pinManager.showPins();
+        }
+        
+        // マップカーソルを元に戻す
+        this.setMapCursor('');
+        
+        console.log('Pin mode entered');
     }
     
     // 右サイドバーの表示状態が変更されたときに呼び出される
@@ -281,26 +341,16 @@ export class OverlayManager {
     }
     
     handleResetClick() {
-        // ピンが登録されているかチェック
-        const hasPins = window.app && window.app.pinManager && window.app.pinManager.getPins().length > 0;
+        // ピンは削除せず、選択点のみリセット
+        // confirmダイアログも不要
         
-        if (hasPins) {
-            // ピンがある場合のみ確認
-            const confirmed = confirm('リセットすると登録されたピンも全てリセットされますがよろしいですか？');
-            if (!confirmed) {
-                return; // キャンセルされた場合は何もしない
-            }
-            
-            // ピンも全てリセット
-            window.app.pinManager.clearAllPins();
-            
-            // ピンマネージャーを無効化
-            window.app.pinManager.disable();
-            
-            // 右サイドバーとピンセクションを非表示
-            document.getElementById('rightSidebar').style.display = 'none';
-            document.getElementById('pinSection').style.display = 'none';
-        }
+        // 画像選択点とマップ選択点のみリセット（ピンは保持）
+        this.imagePoints = [];
+        this.mapPoints = [];
+        
+        // マーカーを削除（各点につき2つのマーカー）
+        this.mapMarkers.forEach(marker => marker.remove());
+        this.mapMarkers = [];
         
         // 既存のオーバーレイを削除
         if (this.overlayLayer) {
@@ -308,33 +358,38 @@ export class OverlayManager {
             this.overlayLayer = null;
         }
         
-        // コントロールパネルを非表示
+        // プレビュー四角形を削除
+        if (this.previewRectangle) {
+            this.map.removeLayer(this.previewRectangle);
+            this.previewRectangle = null;
+        }
+        
+        // 画像ウィンドウを閉じる
+        if (this.imageWindow) {
+            this.imageWindow.close();
+            this.imageWindow = null;
+        }
+        
+        // 画像コントロールパネルを非表示
         const imageControls = document.getElementById('imageControls');
         if (imageControls) {
             imageControls.style.display = 'none';
         }
         
-        // 通常のリセット処理を実行
-        this.resetPoints();
+        // UI表示を更新
+        this.updatePointsDisplay();
         
-        // 適用ボタンを再表示
-        this.applyButton.style.display = 'block';
+        // 適用ボタンの状態を更新
+        this.applyButton.disabled = true;
+        this.applyButton.textContent = '位置合わせを実行';
         
-        // 「３．画像の位置合わせ」モードに戻る
+        // 画像データがある場合は選択を再開
         if (this.imageData) {
-            // ピンマネージャーが有効な場合は無効化（ピンがない場合も念のため）
-            if (window.app && window.app.pinManager && !hasPins) {
-                window.app.pinManager.disable();
-            }
-            
-            // 画像ウィンドウを再表示（既に表示されている場合があるのでチェック）
-            if (!this.imageWindow) {
-                this.startMapSelection();
-            }
-            
-            // 初期状態の指示を表示
-            this.updateInstructionText();
+            this.startMapSelection();
         }
+        
+        // 初期状態の指示を表示
+        this.updateInstructionText();
     }
     
     setImage(imageData) {
@@ -350,8 +405,16 @@ export class OverlayManager {
         this.imageData = imageData;
         console.log('imageData set to:', this.imageData);
         
-        this.resetPointsOnly();  // resetPointsから画像ウィンドウ処理を除外した版を呼ぶ
+        // オーバーレイセクションを表示（再アップロード時に必要）
+        this.overlaySection.style.display = 'block';
+        
+        // 完全にリセットして初期状態に戻す
+        this.resetPointsOnly();  
         console.log('resetPointsOnly completed');
+        
+        // マップクリックイベントを再設定（初期化時と同じ処理）
+        this.setupMapClickHandler();
+        console.log('mapClickHandler setup completed');
         
         this.startMapSelection();
         console.log('startMapSelection completed');
@@ -387,6 +450,9 @@ export class OverlayManager {
             console.error('画像データが設定されていません');
             return;
         }
+        
+        // 位置合わせモードに移行
+        this.enterAlignmentMode();
         
         // 新しいシンプルなドラッグ&リサイズウィンドウを作成
         const maxPoints = this.getRequiredPoints();
@@ -1543,18 +1609,8 @@ export class OverlayManager {
             this.imageWindow.close();
         }
         
-        // ピンを再表示
-        if (this.pinManager) {
-            this.pinManager.showPins();
-        }
-        
-        // マップのカーソルを元に戻す
-        this.setMapCursor('');
-        
-        // オーバーレイマネージャーのマップクリックイベントを削除（ピンマネージャーと競合しないように）
-        if (this.mapClickHandler) {
-            this.map.off('click', this.mapClickHandler);
-        }
+        // ピンモードに移行
+        this.enterPinMode();
         
         // UIの更新
         this.applyButton.disabled = true;
@@ -1724,13 +1780,8 @@ export class OverlayManager {
     deleteImage() {
         console.log('deleteImage called');
         
-        // ピンが登録されている場合はクリア
-        if (window.app && window.app.pinManager) {
-            if (window.app.pinManager.getPins().length > 0) {
-                window.app.pinManager.clearAllPins();
-            }
-            window.app.pinManager.disable();
-        }
+        // ピンは削除せず、ピンマネージャーも無効化しない
+        // 画像ウィンドウを閉じるだけの軽量な処理に変更
         
         // 画像ウィンドウを先に閉じる
         if (this.imageWindow) {
@@ -1739,17 +1790,38 @@ export class OverlayManager {
             this.imageWindow = null;
         }
         
-        // 全ての表示要素をリセット（画像ウィンドウは既に閉じているのでresetPointsOnlyを使用）
-        this.resetPointsOnly();
+        // 選択点のみリセット（ピンは保持）
+        this.imagePoints = [];
+        this.mapPoints = [];
+        
+        // マーカーを削除（選択点のマーカーのみ）
+        this.mapMarkers.forEach(marker => marker.remove());
+        this.mapMarkers = [];
+        
+        // オーバーレイを削除
+        if (this.overlayLayer) {
+            this.map.removeLayer(this.overlayLayer);
+            this.overlayLayer = null;
+        }
+        
+        // プレビュー四角形を削除
+        if (this.previewRectangle) {
+            this.map.removeLayer(this.previewRectangle);
+            this.previewRectangle = null;
+        }
         
         // オーバーレイセクションを非表示
         this.overlaySection.style.display = 'none';
         
-        // 右サイドバーとピンセクションも非表示
-        const rightSidebar = document.getElementById('rightSidebar');
-        const pinSection = document.getElementById('pinSection');
-        if (rightSidebar) rightSidebar.style.display = 'none';
-        if (pinSection) pinSection.style.display = 'none';
+        // 適用ボタンの状態を更新
+        this.applyButton.disabled = true;
+        this.applyButton.textContent = '位置合わせを実行';
+        
+        // UI表示を更新
+        this.updatePointsDisplay();
+        
+        // ピンモードに移行
+        this.enterPinMode();
         
         // 元のキャンバスも非表示
         this.imageCanvas.style.display = 'none';
@@ -1813,10 +1885,8 @@ export class OverlayManager {
             }).addTo(this.map);
         }
         
-        // ピンマネージャーを再度有効化
-        if (window.app && window.app.pinManager) {
-            window.app.pinManager.enable();
-        }
+        // ピンモードに移行
+        this.enterPinMode();
         
         // インフォメッセージを表示
         const info = document.getElementById('overlayInfo');
@@ -1860,16 +1930,17 @@ export class OverlayManager {
             this.previewRectangle = null;
         }
         
+        // マップクリックイベントを一時的に削除（setupMapClickHandlerで再設定される）
+        if (this.mapClickHandler) {
+            this.map.off('click', this.mapClickHandler);
+        }
+        
         // コントロールパネルを非表示
         const imageControls = document.getElementById('imageControls');
         if (imageControls) {
             imageControls.style.display = 'none';
         }
         
-        // ピンを再表示
-        if (this.pinManager) {
-            this.pinManager.showPins();
-        }
         
         this.updatePointsDisplay();
         this.applyButton.disabled = true;
@@ -1908,21 +1979,8 @@ export class OverlayManager {
             imageControls.style.display = 'none';
         }
         
-        // ピンマネージャーを無効化（念のため）
-        if (window.app && window.app.pinManager) {
-            window.app.pinManager.disable();
-        }
-        
-        // オーバーレイマネージャーのマップクリックイベントを復活
-        if (this.mapClickHandler) {
-            this.map.off('click', this.mapClickHandler);
-            this.map.on('click', this.mapClickHandler);
-        }
-        
-        // ピンを再表示
-        if (this.pinManager) {
-            this.pinManager.showPins();
-        }
+        // ピンモードに移行
+        this.enterPinMode();
         
         this.updatePointsDisplay();
         this.applyButton.disabled = true;
@@ -1931,6 +1989,14 @@ export class OverlayManager {
         // 画像ウィンドウの点もクリア
         if (this.imageWindow) {
             this.imageWindow.clearPoints();
+        }
+        
+        // 右サイドバーの状態を維持（ピンが存在する場合）
+        if (window.app && window.app.pinManager && window.app.pinManager.pins.length > 0) {
+            // 右サイドバーを表示状態に保つ
+            if (window.app.showRightSidebar) {
+                window.app.showRightSidebar();
+            }
         }
         
         // 選択を再開
