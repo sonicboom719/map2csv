@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>地図→CSV化支援ツール</title>
+	<title>ポスター地図→CSV化支援ツール</title>
 	
 	<!-- Leaflet CSS -->
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -120,6 +120,7 @@
 				<input type="hidden" id="prefectureInput">
 				<input type="hidden" id="cityInput">
 				<button id="exportCsv" class="btn-primary">CSVエクスポート</button>
+				<button id="importCsv" class="btn-secondary" style="margin-top: 10px;">CSVインポート</button>
 				<div style="margin-top: 10px; text-align: center;">
 					<a href="concat_csv.html" target="_blank" style="color: #3498db; text-decoration: none; font-size: 14px;">
 						→ 複数のCSVファイルを結合する
@@ -180,6 +181,53 @@
 			<div class="modal-buttons">
 				<button id="executeExport" class="btn-primary" style="flex: 1; height: 40px; background-color: #27ae60; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer; margin: 0;">エクスポートを実行</button>
 				<button id="cancelExport" style="flex: 1; height: 40px; background-color: #95a5a6; color: white; border: none; border-radius: 4px; padding: 10px 20px; cursor: pointer; margin: 0;">キャンセル</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- CSVインポート設定モーダル -->
+	<div id="csvImportModal" class="modal" style="display: none;">
+		<div class="modal-content" style="min-width: 500px;">
+			<h3>📥 CSVインポート設定</h3>
+			
+			<!-- ファイル選択（非表示） -->
+			<input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+			
+			<!-- ファイル情報表示 -->
+			<div id="fileInfo" style="display: none; margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 4px;">
+				<strong>選択ファイル:</strong> <span id="fileName"></span><br>
+				<strong>データ件数:</strong> <span id="dataCount"></span>件
+			</div>
+			
+			<!-- 列選択 -->
+			<div id="columnSelection" style="display: none;">
+				<h4 style="margin-bottom: 10px;">インポートする列を選択してください：</h4>
+				<div id="columnCheckboxes" style="margin-bottom: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+					<!-- チェックボックスが動的に追加される -->
+				</div>
+				
+				<!-- 必須列の確認 -->
+				<div style="margin-bottom: 15px; padding: 10px; background-color: #fff3cd; border-radius: 4px; font-size: 14px;">
+					<strong>注意:</strong> lat（緯度）とlong（経度）は必須列です。
+				</div>
+				
+				<!-- 既存ピンの処理方法 -->
+				<div style="margin-bottom: 15px;">
+					<h4 style="margin-bottom: 10px;">既存ピンの処理方法：</h4>
+					<label style="display: flex; align-items: center; margin-bottom: 8px;">
+						<input type="radio" name="importMode" value="append" checked style="margin-right: 8px;">
+						既存ピンに追加する
+					</label>
+					<label style="display: flex; align-items: center;">
+						<input type="radio" name="importMode" value="clear" style="margin-right: 8px;">
+						既存ピンをクリアして新規作成
+					</label>
+				</div>
+			</div>
+			
+			<div class="modal-buttons">
+				<button id="executeImport" class="btn-primary" style="background-color: #27ae60;" disabled>インポートを実行</button>
+				<button id="cancelImport" class="btn-secondary">キャンセル</button>
 			</div>
 		</div>
 	</div>

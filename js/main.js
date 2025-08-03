@@ -3,6 +3,7 @@ import { ImageUploader } from './uploader.js';
 import { OverlayManager } from './overlay-manager.js';
 import { PinManager } from './pins.js';
 import { CsvExporter } from './export.js';
+import { CsvImporter } from './import.js';
 import { InputHistoryManager } from './input-history.js';
 import { CONFIG, ERROR_MESSAGES } from './config.js';
 import { ErrorHandler } from './utils/error-handler.js';
@@ -33,6 +34,8 @@ class App {
         this.pinManager = null;
         /** @type {CsvExporter|null} CSV出力管理インスタンス */
         this.csvExporter = null;
+        /** @type {CsvImporter|null} CSV入力管理インスタンス */
+        this.csvImporter = null;
         /** @type {InputHistoryManager|null} 入力履歴管理インスタンス */
         this.inputHistoryManager = null;
         
@@ -111,6 +114,16 @@ class App {
             });
         } catch (error) {
             console.error('CSVエクスポーター初期化失敗:', error);
+            throw error;
+        }
+        
+        try {
+            this.csvImporter = new CsvImporter({
+                importButton: document.getElementById('importCsv'),
+                pinManager: this.pinManager
+            });
+        } catch (error) {
+            console.error('CSVインポーター初期化失敗:', error);
             throw error;
         }
         
