@@ -14,9 +14,9 @@ export const CONFIG = {
         /** マーカーのサイズ設定 */
         MARKER_SIZES: {
             /** デフォルトマーカーサイズ [幅, 高さ] */
-            DEFAULT: [20, 20],
+            DEFAULT: [18, 18],
             /** 番号付きマーカーサイズ [幅, 高さ] */
-            WITH_NUMBER: [25, 25],
+            WITH_NUMBER: [24, 24],
             /** 選択範囲の半径（ピクセル） */
             SELECTION_RADIUS: 12
         },

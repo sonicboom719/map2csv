@@ -198,7 +198,7 @@ export class CsvImporter {
             'prefecture': '都道府県',
             'city': '市区町村', 
             'number': '掲示場番号',
-            'address': '住所',
+            'address': '住所（インポート対象外）',
             'name': '場所名称',
             'lat': '緯度（必須）',
             'long': '経度（必須）',
@@ -224,6 +224,10 @@ export class CsvImporter {
             if (requiredColumns.includes(lowerHeader)) {
                 checkbox.checked = true;
                 checkbox.disabled = true; // 必須列は変更不可
+            } else if (lowerHeader === 'address') {
+                // addressは意図的にインポート対象外なので未選択かつ無効化
+                checkbox.checked = false;
+                checkbox.disabled = true; // address列は選択不可
             } else if (Object.keys(candidateColumns).includes(lowerHeader)) {
                 // 候補列名の場合は自動選択
                 checkbox.checked = true;
@@ -251,6 +255,13 @@ export class CsvImporter {
                 // 必須列のチェックボックスをグレーアウト
                 checkbox.style.opacity = '0.7';
                 label.style.opacity = '0.9';
+            } else if (lowerHeader === 'address') {
+                // address列は灰色で表示
+                description.style.color = '#6c757d';
+                description.style.fontStyle = 'italic';
+                // address列のチェックボックスをグレーアウト
+                checkbox.style.opacity = '0.5';
+                label.style.opacity = '0.7';
             }
             
             label.appendChild(checkbox);
@@ -359,7 +370,11 @@ export class CsvImporter {
                         case 'memo':
                             pin.memo = value;
                             break;
-                        // prefecture, city, address は現在のデータ構造では使用しない
+                        // prefecture, city は現在のデータ構造では使用しない
+                        // address は意図的にインポートしない（仕様）
+                        case 'address':
+                            // 何もしない（意図的に無視）
+                            break;
                     }
                 });
                 

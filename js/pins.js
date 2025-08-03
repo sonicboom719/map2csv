@@ -263,16 +263,18 @@ export class PinManager {
         
         // マーカーを作成（自動連番がある場合は番号付き）
         const displayNumber = this.getMarkerDisplayNumber(pin);
-        const htmlContent = displayNumber ? 
-            `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>` : 
-            '<div class="pin-marker"></div>';
+        const htmlContent = this.createPinHtml(displayNumber);
+        
+        const isLongText = displayNumber && displayNumber.length >= 3;
+        const iconSize = displayNumber && !isLongText ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT;
+        const iconAnchor = displayNumber && !isLongText ? [12, 12] : [9, 9];
         
         const marker = L.marker(latlng, {
             icon: L.divIcon({
                 className: 'custom-marker-with-number',
                 html: htmlContent,
-                iconSize: displayNumber ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT,
-                iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
+                iconSize: iconSize,
+                iconAnchor: iconAnchor
             }),
             draggable: true
         }).addTo(this.map);
@@ -606,16 +608,41 @@ export class PinManager {
     // 個別のピンマーカーを更新
     updatePinMarker(pin) {
         const displayNumber = this.getMarkerDisplayNumber(pin);
-        const htmlContent = displayNumber ? 
-            `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>` : 
-            '<div class="pin-marker"></div>';
+        const htmlContent = this.createPinHtml(displayNumber);
+        
+        const isLongText = displayNumber && displayNumber.length >= 3;
+        const iconSize = displayNumber && !isLongText ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT;
+        const iconAnchor = displayNumber && !isLongText ? [12, 12] : [9, 9];
             
         pin.marker.setIcon(L.divIcon({
             className: 'custom-marker-with-number',
             html: htmlContent,
-            iconSize: displayNumber ? CONFIG.UI.MARKER_SIZES.WITH_NUMBER : CONFIG.UI.MARKER_SIZES.DEFAULT,
-            iconAnchor: displayNumber ? [12.5, 12.5] : [10, 10]
+            iconSize: iconSize,
+            iconAnchor: iconAnchor
         }));
+    }
+    
+    // ピンのHTML作成（3文字以上は上部表示）
+    createPinHtml(displayNumber) {
+        if (!displayNumber) {
+            return '<div class="pin-marker"></div>';
+        }
+        
+        // 半角3文字以上かチェック
+        const isLongText = displayNumber.length >= 3;
+        
+        if (isLongText) {
+            // 3文字以上は円の直上に表示（円は通常通りpin-markerクラスで表示）
+            return `
+                <div class="pin-container">
+                    <div class="pin-number-above">${displayNumber}</div>
+                    <div class="pin-marker"></div>
+                </div>
+            `;
+        } else {
+            // 2文字以下は円内に表示
+            return `<div class="pin-marker"><span class="pin-number-label">${displayNumber}</span></div>`;
+        }
     }
     
     // 全てのピンマーカーを更新

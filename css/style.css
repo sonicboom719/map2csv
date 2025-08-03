@@ -473,9 +473,38 @@ button {
 .pin-number-label {
     color: white;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 13px;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    line-height: 1;
 }
+
+/* ピンコンテナ（3文字以上用） */
+.pin-container {
+    position: relative;
+    width: 18px;
+    height: 18px;
+}
+
+/* ピン直上のテキスト表示（3文字以上用） */
+.pin-number-above {
+    color: white;
+    font-weight: bold;
+    font-size: 13px;
+    text-align: center;
+    white-space: nowrap;
+    position: absolute;
+    bottom: 14px; /* さらに下に調整 */
+    left: 50%;
+    transform: translateX(-50%);
+    text-shadow: 
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000;
+    z-index: 1000;
+    pointer-events: none; /* クリックイベントを通す */
+}
+
 
 /* マップ上の選択点の数字 */
 .map-point-number {
